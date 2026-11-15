@@ -1,0 +1,18 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# Ishchi fayllar
+data/
+outputs/
+*.wav
+*.mp3
+!website/assets/samples/*.mp3
+
+# O'rnatuvchi yig'ish natijalari
+installer/build/
+installer/Output/
+
+# Lokal sozlamalar
+.claude/

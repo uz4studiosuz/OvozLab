@@ -1,0 +1,80 @@
+[project]
+name = "ovozlab"
+version = "0.1.0"
+description = "OvozLab — o'zbek tili uchun ochiq kodli matndan nutq (TTS) va ovoz klonlash"
+readme = "README.md"
+requires-python = ">=3.12,<3.14"
+license = "Apache-2.0"
+authors = [{ name = "OvozLab contributors" }]
+keywords = ["tts", "text-to-speech", "voice-cloning", "uzbek", "o'zbek", "omnivoice"]
+
+# Asosiy (yengil) qism — o'rnatuvchi shuni o'rnatadi (~250 MB): ilova oynasi, API, audio.
+dependencies = [
+    "fastapi<0.137",
+    "uvicorn",
+    "python-multipart",
+    "numpy",
+    "soundfile",            # WAV/FLAC/OGG/MP3 o'qish-yozish (libsndfile 1.2)
+    "pydub",                # OmniVoice ichida sukunatni kesish
+    "audioop-lts ; python_version >= '3.13'",
+    "imageio-ffmpeg",       # tayyor ffmpeg (WebM/M4A/MP3 dekodlash)
+    "huggingface_hub",      # modellarni yuklab olish
+    "pywebview>=5",         # ish stoli oynasi (Windows'da WebView2)
+]
+
+# Og'ir AI qism — birinchi ishga tushishda qurilmaga qarab bittasi o'rnatiladi:
+#   uv sync --extra xpu    (Intel Arc)
+#   uv sync --extra cuda   (NVIDIA)
+#   uv sync --extra cpu    (videokartasiz)
+[project.optional-dependencies]
+xpu = ["torch>=2.7", "torchaudio>=2.7", "triton-xpu", "transformers>=5.10.0", "accelerate"]
+cuda = ["torch>=2.7", "torchaudio>=2.7", "transformers>=5.10.0", "accelerate"]
+cpu = ["torch>=2.7", "torchaudio>=2.7", "transformers>=5.10.0", "accelerate"]
+
+[project.urls]
+Homepage = "https://github.com/ovozlab/ovozlab"
+
+[project.gui-scripts]
+ovozlab = "ovozlab.desktop:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["ovozlab", "omnivoice"]
+
+[tool.uv]
+conflicts = [[{ extra = "xpu" }, { extra = "cuda" }, { extra = "cpu" }]]
+environments = [
+    "sys_platform == 'win32' and platform_machine == 'AMD64'",
+    "sys_platform == 'linux' and platform_machine == 'x86_64'",
+]
+
+[tool.uv.sources]
+torch = [
+    { index = "pytorch-xpu", extra = "xpu" },
+    { index = "pytorch-cu128", extra = "cuda" },
+    { index = "pytorch-cpu", extra = "cpu" },
+]
+torchaudio = [
+    { index = "pytorch-xpu", extra = "xpu" },
+    { index = "pytorch-cu128", extra = "cuda" },
+    { index = "pytorch-cpu", extra = "cpu" },
+]
+triton-xpu = [{ index = "pytorch-xpu", extra = "xpu" }]
+
+[[tool.uv.index]]
+name = "pytorch-xpu"
+url = "https://download.pytorch.org/whl/xpu"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-cu128"
+url = "https://download.pytorch.org/whl/cu128"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true

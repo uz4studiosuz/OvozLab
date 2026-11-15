@@ -1,0 +1,25 @@
+OvozLab
+Copyright 2026 OvozLab contributors
+
+This product is licensed under the Apache License, Version 2.0 (see LICENSE).
+
+This product includes software developed by third parties:
+
+* OmniVoice (omnivoice/) — Copyright 2026 Xiaomi Corp. (author: Han Zhu)
+  Apache License 2.0 — https://github.com/k2-fsa/OmniVoice
+  The copy in this repository is taken from VoiceStudio
+  (https://github.com/debpalash/VoiceStudio), where the omnivoice/ package is
+  distributed under Apache License 2.0. Training, evaluation, dubbing, CLI and
+  FlashInfer modules were removed.
+
+* Inter typeface (ovozlab/static/fonts/) — Copyright 2016 The Inter Project Authors
+  SIL Open Font License 1.1 — see ovozlab/static/fonts/OFL.txt
+
+Models downloaded at runtime are NOT part of this repository and keep their own
+licenses:
+
+* k2-fsa/OmniVoice — https://huggingface.co/k2-fsa/OmniVoice
+* eustlb/higgs-audio-v2-tokenizer — https://huggingface.co/eustlb/higgs-audio-v2-tokenizer
+* navai-uz/whisper-medium-uzbek (Apache-2.0) — https://huggingface.co/navai-uz/whisper-medium-uzbek
+
+Please review each model card before commercial use.
