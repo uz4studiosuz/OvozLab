@@ -40,6 +40,7 @@ _DEFAULTS = {
     "setup_complete": False,
     "asr_enabled": True,      # o'zbekcha Whisper (matnni avtomatik aniqlash)
     "default_num_step": 32,
+    "last_load_s": None,      # oxirgi model yuklanish vaqti — progressni taxmin qilish uchun
 }
 
 

@@ -34,7 +34,42 @@ def new_id(name: str) -> str:
     return f"{slug}-{uuid.uuid4().hex[:6]}"
 
 
-def save(voice_id: str, name: str, ref_text: str, language: str, prompt, ref_wav: Path, duration_s: float) -> dict:
+# Kayfiyat nomlari: ovoz nomidagi qo'shimcha ("Ali — quvnoq") yoki meta.json dagi "mood" maydoni.
+MOOD_SUFFIX = {"quvnoq": "happy", "g'amgin": "sad", "gamgin": "sad", "jiddiy": "serious",
+               "hikoya": "story", "hikoyachi": "story", "oddiy": "neutral"}
+_SUFFIX_RE = re.compile(r"\s+[—–-]\s+([^—–-]+)$")
+
+
+def group_of(meta: dict) -> str:
+    """Bir odamning turli kayfiyatdagi profillarini birlashtiruvchi kalit: "Ali — quvnoq" -> "ali"."""
+    name = meta.get("name", "")
+    m = _SUFFIX_RE.search(name)
+    if m and m.group(1).strip().lower() in MOOD_SUFFIX:
+        name = name[:m.start()]
+    return name.strip().lower()
+
+
+def mood_of(meta: dict) -> str:
+    if meta.get("mood"):
+        return meta["mood"]
+    m = _SUFFIX_RE.search(meta.get("name", ""))
+    return MOOD_SUFFIX.get(m.group(1).strip().lower(), "neutral") if m else "neutral"
+
+
+def find_mood_sibling(voice_id: str, mood: str):
+    """Shu odamning so'ralgan kayfiyatdagi profili (bo'lsa) — haqiqiy kayfiyat shundan olinadi."""
+    meta = get_meta(voice_id)
+    if mood_of(meta) == mood:
+        return meta
+    g = group_of(meta)
+    for other in list_all():
+        if other["id"] != voice_id and group_of(other) == g and mood_of(other) == mood:
+            return other
+    return None
+
+
+def save(voice_id: str, name: str, ref_text: str, language: str, prompt, ref_wav: Path, duration_s: float,
+         mood: str | None = None) -> dict:
     d = _dir(voice_id)
     d.mkdir(parents=True, exist_ok=True)
     prompt.save(str(d / "prompt.pt"))
@@ -48,6 +83,8 @@ def save(voice_id: str, name: str, ref_text: str, language: str, prompt, ref_wav
         "duration_s": round(duration_s, 2),
         "created_at": int(time.time()),
     }
+    if mood:
+        meta["mood"] = mood
     (d / "meta.json").write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
     with _cache_lock:
         _cache[voice_id] = prompt
@@ -67,7 +104,8 @@ def list_all() -> list[dict]:
     out = []
     for d in config.VOICES_DIR.iterdir():
         try:
-            out.append(get_meta(d.name))
+            meta = get_meta(d.name)
+            out.append({**meta, "mood": mood_of(meta), "group": group_of(meta)})
         except (KeyError, ValueError, OSError):
             continue
     return sorted(out, key=lambda m: m.get("created_at", 0), reverse=True)

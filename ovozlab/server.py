@@ -138,7 +138,7 @@ def _audio_response(samples, fmt: str, filename: str, extra_headers: Optional[di
     headers = {
         "Content-Disposition": f'inline; filename="{filename}.{fmt}"',
         "X-Audio-Duration": f"{len(samples) / engine.sample_rate:.2f}",
-        "Access-Control-Expose-Headers": "X-Audio-Duration, X-History-Id",
+        "Access-Control-Expose-Headers": "X-Audio-Duration, X-History-Id, X-Mood-Source, X-Voice-Used",
     }
     headers.update(extra_headers or {})
     return Response(content=body, media_type=MEDIA[fmt], headers=headers)
@@ -158,6 +158,9 @@ class TTSRequest(BaseModel):
         description="Ovoz uslubi (vergul bilan): male/female, child/teenager/young adult/middle-aged/elderly, "
         "very low pitch ... very high pitch, whisper. Asosan voice_id siz rejimda ishlaydi",
     )
+    mood: Optional[Literal["neutral", "happy", "sad", "serious", "story"]] = Field(
+        None, description="Kayfiyat. Ovozning shu kayfiyatdagi profili bo'lsa o'sha ishlatiladi, aks holda taxminiy "
+        "(tezlik + ohang)")
     save_history: bool = Field(True, description="Natijani tarixga saqlash")
 
 
@@ -177,6 +180,7 @@ class SettingsUpdate(BaseModel):
 def health():
     return {
         "status": engine.state,
+        "loading": engine.load_progress(),
         "error": engine.error,
         "setup_complete": bool(config.settings.get("setup_complete")),
         "model": config.TTS_MODEL,
@@ -358,6 +362,7 @@ async def clone_voice(
     ref_text: Optional[str] = Form(None, description="Audioda aytilgan matn. Bo'sh bo'lsa Whisper aniqlaydi"),
     name: str = Form("Mening ovozim"),
     language: str = Form("uz"),
+    mood: Optional[Literal["neutral", "happy", "sad", "serious", "story"]] = Form(None, description="Yozuv kayfiyati"),
 ):
     """Reference audio asosida yangi ovoz profilini yaratadi va saqlaydi."""
     _require_model()
@@ -372,7 +377,7 @@ async def clone_voice(
         samples, duration = await _save_reference(audio, ref_wav)
         ref_text, auto = await _auto_ref_text(ref_text, samples)
         prompt = await run_in_threadpool(engine.create_voice_prompt, str(ref_wav), ref_text)
-        meta = voices.save(voice_id, name, ref_text, lang, prompt, ref_wav, duration)
+        meta = voices.save(voice_id, name, ref_text, lang, prompt, ref_wav, duration, mood=mood)
         meta["ref_text_auto"] = auto
     except HTTPException:
         voices.delete(voice_id)
@@ -394,27 +399,36 @@ async def tts(req: TTSRequest):
     _require_model()
     text = _check_text(req.text)
     lang = _language(req.language)
-    prompt, voice_name = None, None
+    prompt, voice_name, voice_used = None, None, req.voice_id
+    mood = req.mood if req.mood and req.mood != "neutral" else None
+    mood_source = None
     if req.voice_id:
         try:
-            prompt = await run_in_threadpool(voices.load_prompt, req.voice_id)
-            voice_name = voices.get_meta(req.voice_id).get("name")
+            if mood:
+                sib = await run_in_threadpool(voices.find_mood_sibling, req.voice_id, mood)
+                if sib:
+                    voice_used, mood_source, mood = sib["id"], "profile", None  # haqiqiy kayfiyat
+            prompt = await run_in_threadpool(voices.load_prompt, voice_used)
+            voice_name = voices.get_meta(voice_used).get("name")
         except KeyError:
             raise HTTPException(404, "Ovoz topilmadi")
+    if mood:
+        mood_source = "approx"
     try:
         samples = await run_in_threadpool(
-            engine.synthesize, text, lang, prompt, None, None, req.speed, req.num_step, req.seed, req.instruct
+            engine.synthesize, text, lang, prompt, None, None, req.speed, req.num_step, req.seed, req.instruct, mood
         )
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc
     except Exception as exc:
         logger.exception("TTS xatosi")
         raise HTTPException(500, f"TTS xatosi: {exc}") from exc
-    headers = {}
+    headers = {"X-Mood-Source": mood_source or "none", "X-Voice-Used": voice_used or ""}
     if req.save_history:
         rec = await run_in_threadpool(history.add, samples, engine.sample_rate, {
             "text": text, "voice_id": req.voice_id, "voice_name": voice_name or "Avtomatik",
             "instruct": req.instruct, "speed": req.speed, "num_step": req.num_step, "seed": req.seed,
+            "mood": req.mood, "mood_source": mood_source,
         })
         headers["X-History-Id"] = rec["id"]
     return _audio_response(samples, req.format, req.voice_id or "ovozlab", headers)

@@ -14,7 +14,10 @@ const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<'
 const icon = (id, cls = 'icon sm') => `<svg class="${cls}"><use href="#${id}"/></svg>`;
 const isDesktop = () => !!(window.pywebview && window.pywebview.api);
 
+const MOOD_LABEL = { neutral: 'Oddiy', happy: 'Quvnoq', sad: "G'amgin", serious: 'Jiddiy', story: 'Hikoyachi' };
+const MOOD_SUFFIX = { neutral: '', happy: 'quvnoq', sad: "g'amgin", serious: 'jiddiy', story: 'hikoya' };
 const state = {
+  mood: 'neutral',
   voices: [], voiceId: '', format: 'wav', quality: 32, history: [], health: null,
   playingId: null,
 };
@@ -83,14 +86,37 @@ async function pollHealth() {
     const h = state.health = await json('/health');
     const dot = $('#statusDot'), t1 = $('#statusT1'), t2 = $('#statusT2');
     dot.className = 'dot ' + (h.status === 'ready' ? 'ready' : h.status === 'error' ? 'error' : h.status === 'loading' ? 'loading' : '');
+    const L = h.loading;
     if (!h.setup_complete) { t1.textContent = 'Sozlanmagan'; t2.textContent = 'O\'rnatish ustasi'; }
     else if (h.status === 'ready') { t1.textContent = 'Tayyor'; t2.textContent = h.device_name || h.device; }
-    else if (h.status === 'loading') { t1.textContent = 'Model yuklanmoqda'; t2.textContent = 'Bir daqiqa…'; next = 1500; }
+    else if (h.status === 'loading') { t1.textContent = `Yuklanmoqda · ${L ? Math.round(L.percent) : 0}%`; t2.textContent = L?.stage || 'Bir daqiqa…'; next = 700; }
     else if (h.status === 'error') { t1.textContent = 'Xato'; t2.textContent = h.error || ''; }
-    else { t1.textContent = 'Kutilmoqda'; t2.textContent = '\u00a0'; next = 1500; }
+    else { t1.textContent = 'Kutilmoqda'; t2.textContent = '\u00a0'; next = 1000; }
     $('#statusCard').title = h.error || '';
-  } catch { $('#statusT1').textContent = 'Aloqa yo\'q'; }
+    renderReady(h);
+  } catch { $('#statusT1').textContent = 'Aloqa yo\'q'; next = 2000; }
   setTimeout(pollHealth, next);
+}
+const isReady = () => state.health?.status === 'ready';
+function renderReady(h) {
+  const ban = $('#loadBanner'), ready = h.status === 'ready';
+  ban.hidden = ready || !h.setup_complete;
+  ban.classList.toggle('err', h.status === 'error');
+  if (h.status === 'loading' || h.status === 'not_loaded') {
+    const L = h.loading || { percent: 0, stage: 'Model yuklanmoqda', eta_s: null };
+    $('#lbStage').textContent = (L.stage || 'Model yuklanmoqda') + '…';
+    $('#lbEta').textContent = L.eta_s ? `~${Math.max(1, Math.round(L.eta_s))} soniya qoldi` : '';
+    $('#lbBar').style.width = (L.percent || 2) + '%';
+  } else if (h.status === 'error') {
+    $('#lbStage').textContent = 'Model yuklanmadi'; $('#lbEta').textContent = 'Sozlamalar → Qayta sozlash';
+    $('#lbBar').style.width = '0';
+  }
+  // model tayyor bo'lmaguncha asosiy tugmalar "kutish" holatida
+  for (const id of ['genBtn', 'cSave', 'cAsr']) {
+    const el = document.getElementById(id); if (!el) continue;
+    el.classList.toggle('waiting', !ready); el.title = ready ? '' : 'Model yuklanmoqda — biroz kuting';
+  }
+  const gl = $('#genLabel'); if (gl && !$('#genBtn').disabled) gl.textContent = ready ? 'Ovoz yaratish' : 'Model yuklanmoqda…';
 }
 
 /* ---------------- editor ---------------- */
@@ -153,7 +179,30 @@ async function loadVoices() {
   if ($('.view.active')?.dataset.view === 'voices') renderVoiceGrid();
 }
 function voiceById(id) { return state.voices.find(v => v.id === id); }
+function voiceBase(name) { return String(name || '').replace(/\s+[—–-]\s+[^—–-]+$/, ''); }
+function moodSibling(voiceId, mood) {
+  const v = voiceById(voiceId); if (!v) return null;
+  if ((v.mood || 'neutral') === mood) return v;
+  return state.voices.find(o => o.id !== v.id && o.group === v.group && (o.mood || 'neutral') === mood) || null;
+}
+function renderMoodNote() {
+  $$('#moodPick .mood').forEach(b => b.classList.toggle('on', b.dataset.mood === state.mood));
+  const note = $('#moodNote'), v = voiceById(state.voiceId), m = state.mood;
+  if (m === 'neutral') { note.innerHTML = v && v.mood && v.mood !== 'neutral' ? `Yozuvdagi kayfiyat: <b>${esc(MOOD_LABEL[v.mood])}</b>` : ''; return; }
+  const sib = v && moodSibling(v.id, m);
+  if (sib) { note.innerHTML = `✓ Haqiqiy kayfiyat: <b>${esc(sib.name)}</b> yozuvidan olinadi`; return; }
+  note.innerHTML = v
+    ? `Taxminiy: tezlik va ohang o'zgartiriladi. Haqiqiy kayfiyat uchun <button data-rec-mood>${esc(voiceBase(v.name))} — ${MOOD_SUFFIX[m]}</button> yozuvini qo'shing.`
+    : `Taxminiy: tezlik va ohang o'zgartiriladi. Eng yaxshi natija — kayfiyatli <button data-rec-mood>ovoz yozuvi</button>.`;
+}
+$('#moodPick').onclick = (e) => { const b = e.target.closest('[data-mood]'); if (!b) return; state.mood = b.dataset.mood; renderMoodNote(); };
+$('#moodNote').onclick = (e) => {
+  if (!e.target.closest('[data-rec-mood]')) return;
+  const v = voiceById(state.voiceId);
+  openClone({ mode: 'record', mood: state.mood, name: v ? voiceBase(v.name) : '' });
+};
 function renderVoicePick() {
+  setTimeout(renderMoodNote);
   const v = voiceById(state.voiceId), name = v ? v.name : 'Avtomatik ovoz';
   for (const [a, n] of [['#chipAvatar', '#chipName'], ['#selAvatar', '#selName']]) {
     $(n).textContent = name;
@@ -195,7 +244,7 @@ function renderVoiceGrid() {
   g.style.display = '';
   g.innerHTML = state.voices.map(v => `<div class="voice-card">
     <div class="head"><span class="avatar lg" style="${avatarStyle(v.name)}"></span>
-      <div style="min-width:0"><div class="name" data-rename="${esc(v.id)}" title="Nomini o'zgartirish" style="cursor:text">${esc(v.name)}</div><div class="sub">${v.duration_s}s namuna · ${ago(v.created_at)}</div></div></div>
+      <div style="min-width:0"><div class="name" data-rename="${esc(v.id)}" title="Nomini o'zgartirish" style="cursor:text">${esc(v.name)}</div><div class="sub">${v.duration_s}s namuna · ${ago(v.created_at)}</div></div>${v.mood && v.mood !== 'neutral' ? `<span class="badge mood" style="margin-left:auto">${esc(MOOD_LABEL[v.mood] || v.mood)}</span>` : ''}</div>
     <div class="ref">${esc(v.ref_text)}</div>
     <div class="foot">
       <button class="btn sm" data-use="${esc(v.id)}">Ishlatish</button>
@@ -265,9 +314,9 @@ async function generate() {
   const text = ta.value.trim();
   if (!text) { toast('Avval matn yozing', true); return; }
   if (text.length > MAX_CHARS) { toast('Matn 5 000 belgidan oshmasligi kerak', true); return; }
-  if (state.health && state.health.status !== 'ready') { toast(state.health.status === 'loading' ? 'Model hali yuklanmoqda, biroz kuting' : 'Model tayyor emas — Sozlamalarni tekshiring', true); return; }
+  if (!isReady()) { toast(state.health?.status === 'error' ? 'Model yuklanmadi — Sozlamalarni tekshiring' : 'Model hali yuklanmoqda — tayyor bo\'lishi bilan tugma faollashadi', true); return; }
   const btn = $('#genBtn'); btn.disabled = true; $('#genLabel').innerHTML = '<span class="spinner" style="border-top-color:var(--primary-text);border-color:color-mix(in srgb,var(--primary-text) 30%,transparent);border-top-color:var(--primary-text)"></span> Yaratilmoqda…';
-  const body = { text, voice_id: state.voiceId || null, language: 'uz', format: 'wav', num_step: state.quality };
+  const body = { text, voice_id: state.voiceId || null, language: 'uz', format: 'wav', num_step: state.quality, mood: state.mood };
   if (+speed.value !== 1) body.speed = +speed.value;
   if ($('#seedOn').checked) body.seed = parseInt($('#seed').value, 10) || 0;
   if (!state.voiceId) {
@@ -281,7 +330,10 @@ async function generate() {
     const url = URL.createObjectURL(await r.blob());
     const dur = r.headers.get('X-Audio-Duration');
     const v = voiceById(state.voiceId);
-    await playUrl(url, v ? v.name : 'Avtomatik ovoz', `${(+dur).toFixed(1)}s · ${((performance.now() - t0) / 1000).toFixed(1)}s da yaratildi`, id, text);
+    const used = voiceById(r.headers.get('X-Voice-Used')) || v;
+    const ms = r.headers.get('X-Mood-Source'), ml = MOOD_LABEL[state.mood];
+    const moodTxt = ms === 'profile' ? ` · ${ml} (yozuvdan)` : ms === 'approx' ? ` · ${ml} (taxminiy)` : '';
+    await playUrl(url, used ? used.name : 'Avtomatik ovoz', `${(+dur).toFixed(1)}s · ${((performance.now() - t0) / 1000).toFixed(1)}s da yaratildi${moodTxt}`, id, text);
     if (!$('[data-pane="history"]').hidden) loadHistory();
   } catch (e) { toast(e.message, true); }
   btn.disabled = false; $('#genLabel').textContent = 'Ovoz yaratish';
@@ -466,6 +518,7 @@ function openClone(opts = {}) {
   };
   $('#cSave').onclick = async () => {
     if (!cloneAudio) return toast(mode === 'record' ? 'Avval matnni o\'qib, yozib oling' : 'Avval audio fayl tanlang', true);
+    if (!isReady()) return toast('Model hali yuklanmoqda — biroz kuting', true);
     const b = $('#cSave'); b.disabled = true;
     b.innerHTML = '<span class="spinner" style="border-color:color-mix(in srgb,var(--primary-text) 30%,transparent);border-top-color:var(--primary-text)"></span>' + ($('#cText').value.trim() ? 'Saqlanmoqda…' : 'Matn aniqlanmoqda…');
     try {
@@ -473,11 +526,13 @@ function openClone(opts = {}) {
       fd.append('audio', cloneAudio, 'reference.webm'); fd.append('ref_text', $('#cText').value.trim());
       const sfx = mode === 'record' ? MOODS[mood].suffix : '';
       fd.append('name', $('#cName').value.trim() || ('Mening ovozim' + (sfx ? ` — ${sfx}` : ''))); fd.append('language', 'uz');
+      if (mode === 'record') fd.append('mood', mood);
       const v = await json('/clone', { method: 'POST', body: fd });
       await loadVoices(); close(); useVoice(v.id);
       toast(`"${v.name}" saqlandi` + (v.ref_text_auto ? ' (matn avtomatik aniqlandi)' : ''));
     } catch (e) { toast(e.message, true); b.disabled = false; b.textContent = 'Ovozni saqlash'; }
   };
+  if (opts.name) { $('#cName').value = opts.name; }
   suggestName(); render();
 }
 

@@ -51,7 +51,8 @@
 | 🗣️ **Matndan nutq** | O'zbekcha matnni tabiiy ovozga aylantiradi. 5 000 belgigacha matn qabul qiladi, uzun matnni o'zi bo'laklarga bo'ladi. Tezlik, sifat va format (WAV/MP3) sozlanadi. |
 | 🎙️ **Ovoz klonlash** | 5–15 soniyalik yozuvdan istalgan ovozni nusxalaydi. Ekranda o'qish uchun matn chiqadi: **oddiy, quvnoq, jiddiy, g'amgin, hikoyachi** ohangida. |
 | 📝 **Nutqdan matn** | 60 daqiqagacha audio yoki videoni o'zbekcha matnga o'giradi. Natijani **TXT** yoki **SRT subtitr** qilib saqlash mumkin. |
-| 🎛️ **Ovoz uslubi** | Jins, yosh, ovoz balandligi va shivirlash. Tayyor ovozni o'zingizga moslang. |
+| 🎛️ **Ovoz uslubi** | Jins, yosh (bola, yosh, o'rta yosh, keksa), ovoz balandligi va shivirlash. Uslub bir marta yaratilib saqlanadi, shuning uchun har safar bir xil ovoz chiqadi. |
+| 🎭 **Kayfiyat** | Oddiy, quvnoq, g'amgin, jiddiy, hikoyachi. Ovozning kayfiyatli yozuvi bo'lsa, haqiqiy kayfiyat shundan olinadi; aks holda tezlik va ohang moslanadi. |
 | 🔵 **Ko'rgazma rejimi** | To'liq ekranda ovozga qarab harakatlanadigan shar va so'zma-so'z yorishadigan matn. Reels va taqdimotlar uchun qulay. |
 | 🔒 **To'liq maxfiy** | Hammasi kompyuteringizda ishlaydi. Matn va ovozlaringiz hech qanday serverga yuborilmaydi. |
 | 🧩 **Lokal API** | REST API va Swagger hujjatlari bor. Botingiz, saytingiz yoki dasturingizga ulash mumkin. |
@@ -104,7 +105,7 @@ OvozLab'ni Start menyusidan oching. **O'rnatish ustasi** quyidagilarni bajaradi:
 
 - **Ovoz yaratish:** matnni yozing va **Ovoz yaratish** tugmasini bosing (yoki `Ctrl + Enter`). Natijalar **Tarix** bo'limida saqlanadi.
 - **Ovozingizni klonlash:** **Ovoz klonlash → Yozib olish**. Kayfiyatni tanlang, ekrandagi matnni ovoz chiqarib o'qing va saqlang. Fayl yuklash ham mumkin.
-- **Kayfiyatli ovoz:** bir odamning bir nechta profilini saqlang, masalan "Ali — quvnoq" va "Ali — jiddiy". Klon aynan shu ohangda gapiradi.
+- **Kayfiyat:** o'ng paneldagi **Kayfiyat** tanlovidan foydalaning. Bir odamning "Ali — quvnoq", "Ali — g'amgin" kabi yozuvlari bo'lsa, OvozLab "Ali" ovozida kayfiyat tanlanganda kerakli yozuvga o'zi o'tadi.
 - **Nutqdan matn:** audio yoki video faylni tashlang yoki mikrofondan yozing. Natijani tahrirlash, nusxalash, TXT yoki SRT qilib saqlash mumkin.
 - **Ko'rgazma rejimi:** pleerdagi ⭘ tugmasi. `Probel` — ijro, `Esc` — chiqish.
 
@@ -117,7 +118,8 @@ Intel Core Ultra 7 (Lunar Lake) noutbukida, Intel Arc 140V GPU (8 GB) bilan o'lc
 | Matndan nutq (standart sifat) | 4.5 s audio ≈ 3 s da (real vaqtdan tez) |
 | Ovoz klonlash (profil yaratish) | < 1 s |
 | Nutqdan matn | 87 s audio ≈ 53 s da |
-| Model yuklanishi (ilova ochilganda) | 15–40 s |
+| Model yuklanishi (ilova ochilganda, isitish bilan) | ~20 s |
+| Yuklangandan keyingi birinchi generatsiya | ~3 s |
 
 CPU'da ishlaganda 5–10 baravar sekinroq bo'ladi.
 
@@ -223,8 +225,21 @@ Model mualliflarining o'zi yozganidek, bu sifatni ham pasaytiradi. Uzunlikdan ko
 <details>
 <summary><b>His-tuyg'u (kulgi, hayrat) qanday qo'shiladi?</b></summary>
 
-Eng ishonchli yo'l — kayfiyatli ovoz profili. Klonlashda "Quvnoq" yoki "G'amgin" matnini shu ohangda o'qib, alohida profil saqlang.
+O'ng paneldagi **Kayfiyat** tanlovi ikki xil ishlaydi:
+
+- **Haqiqiy kayfiyat:** ovozning shu kayfiyatdagi yozuvi bo'lsa (masalan, "Ali — quvnoq"), o'sha yozuv ishlatiladi. Model ohangni aynan reference yozuvdan oladi, shuning uchun bu eng tabiiy natija beradi.
+- **Taxminiy kayfiyat:** yozuv bo'lmasa, tezlik va ohang moslanadi (quvnoq: biroz baland va tez; g'amgin: past va sekin).
+
+Kayfiyatli yozuv qo'shish uchun **Ovoz klonlash → Yozib olish** bo'limida kayfiyatni tanlab, ekrandagi matnni shu ohangda o'qing.
 `[laughter]`, `[sigh]` kabi teglar **tajribaviy**: model ularni asosan ingliz va xitoy tilida o'rgangan, o'zbekcha matnda ko'pincha sezilmaydi.
+</details>
+
+<details>
+<summary><b>"Keksa" yoki "bola" uslubi qanday ishlaydi?</b></summary>
+
+OmniVoice ovoz dizaynini asosan ingliz va xitoy tilidagi ma'lumotlarda o'rgangan. O'zbekcha matnda "keksa" buyrug'i deyarli sezilmaydi: o'lchovda keksa va yosh ayol ovozi bir xil chiqdi (~250 Hz).
+Shuning uchun OvozLab uslubni avval inglizcha jumlada yaratadi va o'sha ovozni o'zbekcha matnga klon qiladi. Natijada keksa ayol ovozi ~175 Hz, keksa erkak ovozi ~104 Hz bo'ladi.
+Uslub birinchi marta ~5 soniyada tayyorlanadi, keyin saqlanadi va tez ishlaydi.
 </details>
 
 <details>

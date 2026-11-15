@@ -45,6 +45,13 @@
     <section class="view active" data-view="tts">
       <div class="tts">
         <div class="editor-col">
+          <div class="load-banner" id="loadBanner" hidden>
+            <span class="spinner"></span>
+            <div class="lb-body">
+              <div class="lb-row"><b id="lbStage">Model yuklanmoqda</b><span class="hint" id="lbEta"></span></div>
+              <div class="bar"><i id="lbBar"></i></div>
+            </div>
+          </div>
           <div class="editor-scroll" id="editorScroll">
             <div class="editor-inner">
               <button class="voice-chip" id="voiceChip"><span class="avatar" id="chipAvatar"></span><span id="chipName">Avtomatik ovoz</span></button>
@@ -98,6 +105,16 @@
               <div class="label-row"><span class="label">Tezlik</span><span class="hint" id="speedVal">1.00×</span></div>
               <input type="range" class="range" id="speed" min="0.7" max="1.3" step="0.05" value="1">
               <div class="range-labels"><span>Sekinroq</span><span>Tezroq</span></div>
+            </div>
+
+            <div class="field">
+              <div class="label-row"><span class="label">Kayfiyat</span></div>
+              <div class="moods" id="moodPick">
+                <button class="mood on" data-mood="neutral">Oddiy</button><button class="mood" data-mood="happy">Quvnoq</button>
+                <button class="mood" data-mood="sad">G'amgin</button><button class="mood" data-mood="serious">Jiddiy</button>
+                <button class="mood" data-mood="story">Hikoyachi</button>
+              </div>
+              <div class="mood-note" id="moodNote"></div>
             </div>
 
             <div class="field">

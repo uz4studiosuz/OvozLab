@@ -276,6 +276,18 @@ a { color: inherit; }
 .callout { display: flex; gap: 10px; background: var(--bg-subtle); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; font-size: 12.5px; color: var(--text-2); line-height: 1.5; }
 .callout .icon { color: var(--muted); margin-top: 1px; }
 
+/* ---------- loading banner / mood ---------- */
+.load-banner { display: flex; gap: 12px; align-items: center; padding: 12px 24px; border-bottom: 1px solid var(--border); background: var(--bg-subtle); }
+.load-banner .lb-body { flex: 1; min-width: 0; }
+.load-banner .lb-row { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; margin-bottom: 7px; }
+.load-banner.err { background: var(--danger-soft); }
+.load-banner.err .spinner { display: none; }
+.btn.waiting { opacity: .55; cursor: progress; }
+.mood-note { font-size: 12.5px; color: var(--muted); margin-top: 8px; line-height: 1.5; }
+.mood-note b { color: var(--text); font-weight: 550; }
+.mood-note button { border: 0; background: none; padding: 0; color: var(--accent-text); font: inherit; font-weight: 550; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
+.badge.mood { background: var(--accent-soft); color: var(--accent-text); }
+
 /* ---------- stt ---------- */
 .stt-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 16px 20px; border-bottom: 1px solid var(--border); }
 .stt-head .t1 { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
