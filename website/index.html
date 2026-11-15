@@ -405,7 +405,8 @@ open(<span class="s">"salom.wav"</span>, <span class="s">"wb"</span>).write(r.co
   const REPO = 'https://github.com/uz4studiosuz/UzbekLabs';
   document.querySelectorAll('[data-gh]').forEach(a => a.href = REPO);
   document.querySelectorAll('[data-gh-path]').forEach(a => a.href = REPO + a.dataset.ghPath);
-  document.querySelectorAll('[data-dl]').forEach(a => a.href = REPO + '/releases/latest');
+  // To'g'ridan-to'g'ri yuklab olish: har relizda doimiy nomli OvozLab-Setup.exe fayli bor.
+  document.querySelectorAll('[data-dl]').forEach(a => { a.href = REPO + '/releases/latest/download/OvozLab-Setup.exe'; a.setAttribute('download', ''); });
 
   // sticky header border
   const hdr = document.getElementById('hdr');

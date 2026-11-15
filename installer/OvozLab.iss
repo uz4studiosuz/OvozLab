@@ -63,7 +63,7 @@ uz.ButtonWizardBrowse=T&anlash...
 uz.ExitSetupTitle=O'rnatishdan chiqish
 uz.ExitSetupMessage=O'rnatish tugallanmadi. Hozir chiqsangiz, dastur o'rnatilmaydi.%n%nKeyinroq qayta ishga tushirib, o'rnatishni yakunlashingiz mumkin.%n%nChiqasizmi?
 uz.WelcomeLabel1=[name] o'rnatuvchisiga xush kelibsiz
-uz.WelcomeLabel2=[name/ver] kompyuteringizga o'rnatiladi.%n%nO'rnatish ikki bosqichda bo'ladi:%n%n1. Hozir — dastur va asosiy komponentlar (~120 MB yuklanadi).%n2. Birinchi ishga tushirishda — AI modellar va qurilmangizga mos dvigatel. Ular nima ekani, hajmi va qayerga saqlanishi oldindan ko'rsatiladi.%n%nInternet aloqasi kerak.
+uz.WelcomeLabel2=[name/ver] kompyuteringizga o'rnatiladi.%n%nO'rnatish ikki bosqichda bo'ladi:%n%n1. Hozir — dastur, Python va asosiy komponentlar (~60 MB yuklanadi).%n2. Birinchi ishga tushirishda — AI modellar va qurilmangizga mos dvigatel. Ular nima ekani, hajmi va qayerga saqlanishi oldindan ko'rsatiladi.%n%nInternet aloqasi kerak.
 uz.WizardLicense=Litsenziya
 uz.LicenseLabel=Davom etishdan oldin quyidagi ma'lumotni o'qing.
 uz.LicenseLabel3=OvozLab ochiq kodli dastur va Apache 2.0 litsenziyasi asosida tarqatiladi.
@@ -114,7 +114,7 @@ uz.SelectLanguageTitle=Tilni tanlang
 uz.AdditionalIcons=Yorliqlar:
 uz.CreateDesktopIcon=&Ish stolida yorliq yaratish
 uz.LaunchProgram=%1 ni ochish
-uz.BootstrapStatus=Python va asosiy komponentlar yuklanmoqda (~120 MB). Bu 1–3 daqiqa oladi...
+uz.BootstrapStatus=Asosiy komponentlar yuklanmoqda (~60 MB). Bu 1–2 daqiqa oladi...
 uz.BootstrapFailed=Asosiy komponentlarni yuklab bo'lmadi (kod %1).%n%nInternet aloqasini tekshirib, o'rnatuvchini qayta ishga tushiring.%n%nBatafsil: %2
 uz.RemoveDataTitle=Foydalanuvchi ma'lumotlari
 uz.RemoveData=Klonlangan ovozlar, tarix va standart joydagi AI modellar ham o'chirilsinmi?%n%n%1%n%n(Agar modellarni boshqa papkaga saqlagan bo'lsangiz, ularni qo'lda o'chiring.)
@@ -132,7 +132,7 @@ Source: "{#Root}\LICENSE"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#Root}\NOTICE"; DestDir: "{app}"; Flags: ignoreversion
 Source: "build\bin\uv.exe"; DestDir: "{app}\bin"; Flags: ignoreversion
 Source: "files\bootstrap.cmd"; DestDir: "{app}\bin"; Flags: ignoreversion
-Source: "files\bootstrap-run.ps1"; DestDir: "{app}\bin"; Flags: ignoreversion
+Source: "build\python\*"; DestDir: "{app}\python"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "__pycache__\*,*.pyc,\Lib\test\*,\Lib\idlelib\*"
 Source: "assets\ovozlab.ico"; DestDir: "{app}\assets"; Flags: ignoreversion
 
 [Icons]
@@ -162,11 +162,9 @@ begin
   OldStyle := WizardForm.ProgressGauge.Style;
   WizardForm.ProgressGauge.Style := npbstMarquee;
   try
-    // bootstrap-run.ps1 bootstrap.cmd ni WMI orqali (Setup'ning bolasi bo'lmagan jarayon sifatida) ishga
-    // tushiradi: aks holda Setup'ning RedirectionGuard himoyasi uv yaratadigan junction'ni bloklaydi.
-    if not Exec(ExpandConstant('{sys}\WindowsPowerShell\v1.0\powershell.exe'),
-        '-NoProfile -NonInteractive -ExecutionPolicy Bypass -WindowStyle Hidden -File "' + ExpandConstant('{app}\bin\bootstrap-run.ps1') + '" -App "' + ExpandConstant('{app}') + '"',
-        ExpandConstant('{app}'), SW_HIDE, ewWaitUntilTerminated, ResultCode) or (ResultCode <> 0) then
+    // Python o'rnatuvchi ichida keladi, shuning uchun uv Python yuklamaydi va junction yaratmaydi
+    // (Setup'ning RedirectionGuard himoyasi junction'larni bloklaydi - os error 448).
+    if not Exec(ExpandConstant('{app}\bin\bootstrap.cmd'), '', ExpandConstant('{app}'), SW_HIDE, ewWaitUntilTerminated, ResultCode) or (ResultCode <> 0) then
       MsgBox(FmtMessage(CustomMessage('BootstrapFailed'), [IntToStr(ResultCode), ExpandConstant('{app}\install.log')]), mbError, MB_OK);
   finally
     WizardForm.ProgressGauge.Style := OldStyle;

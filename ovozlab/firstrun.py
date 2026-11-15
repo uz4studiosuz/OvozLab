@@ -343,8 +343,9 @@ class SetupJob:
         base_size = dir_size(site)
         env = dict(os.environ, UV_PROJECT_ENVIRONMENT=sys.prefix, UV_CACHE_DIR=str(cache),
                    UV_NO_PROGRESS="1", UV_LINK_MODE="copy")
-        if (config.ROOT_DIR / "python").is_dir():  # o'rnatuvchi qo'ygan Python
-            env.update(UV_PYTHON_INSTALL_DIR=str(config.ROOT_DIR / "python"), UV_PYTHON_PREFERENCE="only-managed")
+        bundled = config.ROOT_DIR / "python" / "python.exe"  # o'rnatuvchi ichida kelgan Python
+        if bundled.is_file():
+            env.update(UV_PYTHON=str(bundled), UV_PYTHON_DOWNLOADS="never")
         cmd = [uv, "sync", "--frozen", "--no-dev", "--inexact", "--no-install-project",
                "--extra", backend, "--directory", str(config.ROOT_DIR)]
         self._log("$ uv " + " ".join(cmd[1:]))

@@ -28,6 +28,21 @@ if ($uv) {
     Copy-Item "$here\build\uv\uv.exe" "$bin\uv.exe" -Force
 }
 
+# 3b) Python 3.12 (python-build-standalone) - o'rnatuvchi ichiga joylanadi.
+# Foydalanuvchi kompyuterida uv Python yuklamaydi: Setup ichida uv yaratadigan junction'lar
+# RedirectionGuard tufayli ishlamaydi (os error 448).
+$py = "$here\build\python"
+if (-not (Test-Path "$py\python.exe")) {
+    $tmp = "$here\build\pyinstall"
+    uv python install 3.12 --install-dir $tmp --no-bin --no-registry
+    if ($LASTEXITCODE -ne 0) { throw "Python yuklanmadi" }
+    $src = Get-ChildItem $tmp -Directory | Where-Object {
+        $_.Name -match '^cpython-3\.12\.\d+-windows' -and -not ($_.Attributes -band [IO.FileAttributes]::ReparsePoint)
+    } | Select-Object -First 1
+    if (-not $src) { throw "Python papkasi topilmadi" }
+    Copy-Item $src.FullName $py -Recurse
+}
+
 # 4) Inno Setup kompilyatori
 $iscc = @(
     "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe",
