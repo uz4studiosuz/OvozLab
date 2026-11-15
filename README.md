@@ -10,12 +10,12 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/uz4studiosuz/UzbekLabs/releases/latest/download/OvozLab-Setup.exe"><img src="https://img.shields.io/badge/Windows%20uchun%20yuklab%20olish-0b0b0c?style=for-the-badge&logo=windows&logoColor=white" alt="Windows uchun yuklab olish"></a>
+  <a href="https://github.com/uz4studiosuz/OvozLab/releases/latest/download/OvozLab-Setup.exe"><img src="https://img.shields.io/badge/Windows%20uchun%20yuklab%20olish-0b0b0c?style=for-the-badge&logo=windows&logoColor=white" alt="Windows uchun yuklab olish"></a>
 </p>
 
 <p align="center">
-  <a href="https://github.com/uz4studiosuz/UzbekLabs/releases/latest"><img src="https://img.shields.io/github/v/release/uz4studiosuz/UzbekLabs?label=versiya&color=0b0b0c" alt="Oxirgi versiya"></a>
-  <a href="https://github.com/uz4studiosuz/UzbekLabs/releases"><img src="https://img.shields.io/github/downloads/uz4studiosuz/UzbekLabs/total?label=yuklab%20olingan&color=0b0b0c" alt="Yuklab olishlar"></a>
+  <a href="https://github.com/uz4studiosuz/OvozLab/releases/latest"><img src="https://img.shields.io/github/v/release/uz4studiosuz/OvozLab?label=versiya&color=0b0b0c" alt="Oxirgi versiya"></a>
+  <a href="https://github.com/uz4studiosuz/OvozLab/releases"><img src="https://img.shields.io/github/downloads/uz4studiosuz/OvozLab/total?label=yuklab%20olingan&color=0b0b0c" alt="Yuklab olishlar"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/litsenziya-Apache--2.0-0b0b0c" alt="Apache-2.0"></a>
   <img src="https://img.shields.io/badge/Windows-10%20%2F%2011-0b0b0c" alt="Windows 10/11">
   <img src="https://img.shields.io/badge/python-3.12-0b0b0c" alt="Python 3.12">
@@ -62,7 +62,7 @@
 
 ### 1. Yuklab oling
 
-**[⬇ OvozLab-Setup.exe](https://github.com/uz4studiosuz/UzbekLabs/releases/latest/download/OvozLab-Setup.exe)** (25 MB). Barcha versiyalar: [Releases](https://github.com/uz4studiosuz/UzbekLabs/releases).
+**[⬇ OvozLab-Setup.exe](https://github.com/uz4studiosuz/OvozLab/releases/latest/download/OvozLab-Setup.exe)** (25 MB). Barcha versiyalar: [Releases](https://github.com/uz4studiosuz/OvozLab/releases).
 
 ### 2. O'rnating
 
@@ -126,8 +126,8 @@ CPU'da ishlaganda 5–10 baravar sekinroq bo'ladi.
 Talablar: [uv](https://docs.astral.sh/uv/) va Git.
 
 ```bash
-git clone https://github.com/uz4studiosuz/UzbekLabs.git
-cd UzbekLabs
+git clone https://github.com/uz4studiosuz/OvozLab.git
+cd OvozLab
 uv sync --extra xpu          # Intel Arc   |   --extra cuda (NVIDIA)   |   --extra cpu
 uv run python -m ovozlab     # ilova oynasi
 ```
@@ -256,7 +256,7 @@ Faqat o'sha odamning roziligi bilan. Birovning ovozini ruxsatisiz ishlatish, u b
 | Mikrofon ishlamayapti | Windows sozlamalari → Maxfiylik → Mikrofon: ish stoli ilovalariga ruxsat bering |
 | O'rnatish ustasini qaytadan ochish | **Sozlamalar → Qayta sozlash**, yoki `%LOCALAPPDATA%\OvozLab\settings.json` faylini o'chiring |
 
-Xatoni topa olmasangiz, jurnal faylini biriktirib [Issue oching](https://github.com/uz4studiosuz/UzbekLabs/issues/new).
+Xatoni topa olmasangiz, jurnal faylini biriktirib [Issue oching](https://github.com/uz4studiosuz/OvozLab/issues/new).
 
 ## Loyiha tuzilmasi
 
@@ -276,7 +276,7 @@ scripts/          Test skriptlari
 
 ## Hissa qo'shish
 
-Xatolar va takliflar uchun [Issues](https://github.com/uz4studiosuz/UzbekLabs/issues) bo'limiga yozing. Pull request'lar ham qabul qilinadi, batafsil: [CONTRIBUTING.md](CONTRIBUTING.md).
+Xatolar va takliflar uchun [Issues](https://github.com/uz4studiosuz/OvozLab/issues) bo'limiga yozing. Pull request'lar ham qabul qilinadi, batafsil: [CONTRIBUTING.md](CONTRIBUTING.md).
 
 Ayniqsa quyidagi yo'nalishlarda yordam kerak:
 

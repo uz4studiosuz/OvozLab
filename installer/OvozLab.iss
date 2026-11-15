@@ -6,7 +6,7 @@
   #define AppVersion "0.1.0"
 #endif
 #define AppPublisher "OvozLab contributors"
-#define AppURL "https://github.com/uz4studiosuz/UzbekLabs"
+#define AppURL "https://github.com/uz4studiosuz/OvozLab"
 #define AppId "{{8E3C2A51-6F0B-4C7D-9A1E-5B2F7D4C9E10}"
 #define Root ".."
 
