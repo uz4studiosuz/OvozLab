@@ -32,7 +32,7 @@ cuda = ["torch>=2.7", "torchaudio>=2.7", "transformers>=5.10.0", "accelerate"]
 cpu = ["torch>=2.7", "torchaudio>=2.7", "transformers>=5.10.0", "accelerate"]
 
 [project.urls]
-Homepage = "https://github.com/ovozlab/ovozlab"
+Homepage = "https://github.com/uz4studiosuz/UzbekLabs"
 
 [project.gui-scripts]
 ovozlab = "ovozlab.desktop:main"

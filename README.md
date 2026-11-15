@@ -28,7 +28,7 @@
 
 ## O'rnatish (oddiy foydalanuvchilar uchun)
 
-1. [Releases](https://github.com/ovozlab/ovozlab/releases) sahifasidan `OvozLab-Setup-x.y.z.exe` faylini yuklab oling.
+1. [Releases](https://github.com/uz4studiosuz/UzbekLabs/releases) sahifasidan `OvozLab-Setup-x.y.z.exe` faylini yuklab oling.
 2. Uni ishga tushiring. Administrator huquqi kerak emas. O'rnatuvchi Python va asosiy komponentlarni yuklaydi (~120 MB).
 3. OvozLab'ni oching. **O'rnatish ustasi** quyidagilarni bajaradi:
    - videokartangizni aniqlaydi (Intel Arc, NVIDIA yoki CPU) va mos dvigatelni tavsiya qiladi;
@@ -49,7 +49,7 @@ Intel Arc yoki NVIDIA videokarta tavsiya etiladi. CPU'da ham ishlaydi, lekin 5â€
 Talablar: [uv](https://docs.astral.sh/uv/).
 
 ```bash
-git clone https://github.com/ovozlab/ovozlab.git
+git clone https://github.com/uz4studiosuz/UzbekLabs.git
 cd ovozlab
 uv sync --extra xpu      # Intel Arc   |  --extra cuda (NVIDIA)  |  --extra cpu
 uv run python -m ovozlab # ilova oynasi
@@ -122,7 +122,7 @@ scripts/          Test skriptlari
 
 ## Hissa qo'shish
 
-Xatolar va takliflar uchun [Issues](https://github.com/ovozlab/ovozlab/issues) bo'limiga yozing. Pull request'lar ham qabul qilinadi, batafsil: [CONTRIBUTING.md](CONTRIBUTING.md).
+Xatolar va takliflar uchun [Issues](https://github.com/uz4studiosuz/UzbekLabs/issues) bo'limiga yozing. Pull request'lar ham qabul qilinadi, batafsil: [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Litsenziya va minnatdorchilik
 

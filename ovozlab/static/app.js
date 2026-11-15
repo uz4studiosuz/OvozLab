@@ -1,7 +1,7 @@
 /* OvozLab — UI */
 'use strict';
 
-const GITHUB_URL = 'https://github.com/ovozlab/ovozlab';
+const GITHUB_URL = 'https://github.com/uz4studiosuz/UzbekLabs';
 const MAX_CHARS = 5000;
 const TAGS = [
   ['[laughter]', 'Kulgi'], ['[sigh]', "Xo'rsinish"], ['[surprise-ah]', 'Hayrat — ah'], ['[surprise-oh]', 'Hayrat — oh'],
