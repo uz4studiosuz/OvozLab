@@ -1,6 +1,6 @@
 [project]
 name = "ovozlab"
-version = "0.2.0"
+version = "0.2.1"
 description = "OvozLab — o'zbek tili uchun ochiq kodli matndan nutq (TTS) va ovoz klonlash"
 readme = "README.md"
 requires-python = ">=3.12,<3.14"

@@ -54,7 +54,7 @@ def start_model_load() -> None:
 async def lifespan(_app: FastAPI):
     config.apply_model_env()
     config.VOICES_DIR.mkdir(parents=True, exist_ok=True)
-    if config.settings.get("setup_complete") and os.environ.get("OVOZLAB_PRELOAD", "1") != "0":
+    if firstrun.is_ready_installed() and os.environ.get("OVOZLAB_PRELOAD", "1") != "0":
         start_model_load()
     yield
 
@@ -85,7 +85,7 @@ def _check_text(text: str) -> str:
 
 
 def _require_model() -> None:
-    if not config.settings.get("setup_complete"):
+    if not firstrun.is_ready_installed():
         raise HTTPException(409, "OvozLab hali sozlanmagan. Avval o'rnatish ustasini yakunlang")
     if engine.state == "error":
         raise HTTPException(503, f"Model yuklanmagan: {engine.error}")
@@ -182,7 +182,7 @@ def health():
         "status": engine.state,
         "loading": engine.load_progress(),
         "error": engine.error,
-        "setup_complete": bool(config.settings.get("setup_complete")),
+        "setup_complete": firstrun.is_ready_installed(),
         "model": config.TTS_MODEL,
         "device": engine.device,
         "device_name": engine.device_name,

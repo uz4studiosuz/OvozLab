@@ -158,7 +158,7 @@ def status() -> dict:
     mdir = config.models_dir()
     backend = installed_backend()
     return {
-        "setup_complete": bool(config.settings.get("setup_complete")),
+        "setup_complete": is_ready_installed(),
         "gpus": gpus,
         "recommended": recommend_backend(gpus),
         "selected_backend": config.settings.get("backend"),
@@ -343,9 +343,9 @@ class SetupJob:
         base_size = dir_size(site)
         env = dict(os.environ, UV_PROJECT_ENVIRONMENT=sys.prefix, UV_CACHE_DIR=str(cache),
                    UV_NO_PROGRESS="1", UV_LINK_MODE="copy")
-        bundled = config.ROOT_DIR / "python" / "python.exe"  # o'rnatuvchi ichida kelgan Python
-        if bundled.is_file():
-            env.update(UV_PYTHON=str(bundled), UV_PYTHON_DOWNLOADS="never")
+        # Muhit allaqachon bor (biz uning ichida ishlayapmiz): uv o'sha Python'ni ishlatadi. UV_PYTHON berilmaydi —
+        # boshqa Python ko'rsatilsa, uv muhitni noldan qayta yaratib, mavjud paketlarni o'chirib yuboradi.
+        env["UV_PYTHON_DOWNLOADS"] = "never"
         cmd = [uv, "sync", "--frozen", "--no-dev", "--inexact", "--no-install-project",
                "--extra", backend, "--directory", str(config.ROOT_DIR)]
         self._log("$ uv " + " ".join(cmd[1:]))
@@ -416,3 +416,12 @@ def _find_uv() -> str:
 
 
 job = SetupJob()
+
+
+def is_ready_installed() -> bool:
+    """Sozlash tugagan VA PyTorch haqiqatda o'rnatilgan.
+
+    Yangilash yoki qo'lda o'chirish tufayli PyTorch yo'qolsa, ilova xato ko'rsatish o'rniga
+    o'rnatish ustasini qayta ochadi (modellar saqlanib qoladi, faqat PyTorch qadami bajariladi).
+    """
+    return bool(config.settings.get("setup_complete")) and installed_backend() is not None

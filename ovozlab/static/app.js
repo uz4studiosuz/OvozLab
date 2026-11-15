@@ -678,7 +678,7 @@ async function renderSettings() {
       <label class="set-row" style="cursor:pointer"><div class="k"><div class="t1">Matnni avtomatik aniqlash</div><div class="t2">Klonlashda audiodagi gapni o'zbekcha Whisper yozib beradi (~3 GB model)</div></div>
         <span class="switch"><input type="checkbox" id="setAsr" ${s.settings.asr_enabled ? 'checked' : ''}><span></span></span></label>
       <div class="set-row"><div class="k"><div class="t1">Mavzu</div><div class="t2">Ilova ko'rinishi</div></div>
-        <div class="seg" id="theme" style="width:240px"><button data-v="">Tizim</button><button data-v="light">Yorug'</button><button data-v="dark">Qorong'i</button></div></div>
+        <div class="seg" id="theme" style="width:240px"><button data-v="system">Tizim</button><button data-v="light">Yorug'</button><button data-v="dark">Qorong'i</button></div></div>
     </div>
     <div class="card"><div class="card-head"><h3>Dasturchilar uchun</h3></div>
       <div class="set-row"><div class="k"><div class="t1">Lokal API</div><div class="t2 mono">${esc(location.origin)}</div></div><button class="btn sm" data-link="api">${icon('i-external', 'icon xs')}Hujjatlar</button></div>
@@ -690,13 +690,15 @@ async function renderSettings() {
   $$('[data-open]', body).forEach(b => b.onclick = () => post(`/api/system/open/${b.dataset.open}`).catch(e => toast(e.message, true)));
   $('#reSetup').onclick = () => openSetup(true);
   $('#setAsr').onchange = (e) => post('/api/settings', { asr_enabled: e.target.checked }).then(() => toast('Saqlandi'));
-  const th = (() => { try { return localStorage.getItem('ovozlab.theme') || ''; } catch { return ''; } })();
+  const th = savedTheme();
   $$('#theme button').forEach(b => b.classList.toggle('on', b.dataset.v === th));
   seg('theme', v => { applyTheme(v); try { localStorage.setItem('ovozlab.theme', v); } catch {} });
   json('/api/system/sizes').then(z => { $('#szModels').textContent = '· ' + fmtBytes(z.models_bytes); $('#szData').textContent = '· ' + fmtBytes(z.data_bytes); }).catch(() => {});
 }
-function applyTheme(v) { if (v) document.documentElement.dataset.theme = v; else delete document.documentElement.dataset.theme; }
-try { applyTheme(localStorage.getItem('ovozlab.theme') || ''); } catch {}
+// Standart mavzu — yorug'. "Tizim" tanlansa, Windows mavzusiga ergashadi.
+function savedTheme() { try { return localStorage.getItem('ovozlab.theme') || 'light'; } catch { return 'light'; } }
+function applyTheme(v) { if (v && v !== 'system') document.documentElement.dataset.theme = v; else delete document.documentElement.dataset.theme; }
+applyTheme(savedTheme());
 
 /* ================= SETUP WIZARD ================= */
 const W = { step: 0, st: null, backend: null, modelsDir: '', asr: true, poll: null, rerun: false };
@@ -726,6 +728,18 @@ function totalPlan() {
 function renderSetup() {
   wizardSteps();
   const c = $('#setupContent');
+  if (W.step === 0 && W.st.selected_backend && !W.st.installed_backend && W.st.models.some(m => m.present)) {
+    const b = W.st.backends.find(x => x.id === W.st.selected_backend);
+    c.innerHTML = `<h2>PyTorch'ni qayta o'rnatish kerak</h2>
+      <p class="lead">Dvigatel (PyTorch) topilmadi — odatda eski versiyadan yangilaganda shunday bo'ladi. Ovozlaringiz, tarix va modellar joyida, faqat dvigatel qayta yuklanadi.</p>
+      <div class="summary"><div class="summary-row"><div class="t1">PyTorch — ${esc(b ? b.label : W.st.selected_backend)}</div>
+        <div class="size">${b ? fmtBytes(b.disk) : ''}</div>
+        <div class="where">${icon('i-drive', 'icon xs')}<span class="mono">${esc(W.st.app_dir)}</span></div></div></div>`;
+    foot(`<button class="btn ghost" id="wFull">Boshqa qurilma tanlash</button>`, `<button class="btn primary lg" id="wRepair">Qayta o'rnatish</button>`);
+    $('#wFull').onclick = () => { W.step = 1; renderSetup(); };
+    $('#wRepair').onclick = () => { W.backend = W.st.selected_backend; W.step = 3; renderSetup(); };
+    return;
+  }
   if (W.step === 0) {
     const plan = totalPlan(), need = plan.filter(p => !p.have).reduce((a, p) => a + p.size, 0);
     c.innerHTML = `<h2>${W.rerun ? 'OvozLab sozlamalari' : 'OvozLab\'ga xush kelibsiz'}</h2>
