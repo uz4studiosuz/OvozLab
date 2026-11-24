@@ -20,7 +20,7 @@ from urllib.parse import quote, unquote
 
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Query, Request, Security, UploadFile
 from fastapi.concurrency import run_in_threadpool
-from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Response
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, Response
 from fastapi.security import APIKeyHeader, HTTPAuthorizationCredentials, HTTPBearer
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
@@ -914,8 +914,14 @@ def internal_voice_owner(request: Request, body: VoiceOwner):
 WEBSITE_DIR = Path(os.environ.get("OVOZLAB_WEBSITE_DIR", config.ROOT_DIR / "website"))
 
 
-def _app_page() -> FileResponse:
-    return FileResponse(STATIC_DIR / "index.html", headers={"Cache-Control": "no-store"})
+def _app_page() -> HTMLResponse:
+    # CSS/JS havolasiga fayl vaqtini qo'shamiz: Cloudflare/brauzer keshi har yangilanishda o'zi almashadi.
+    html = (STATIC_DIR / "index.html").read_text(encoding="utf-8")
+    for name in ("app.css", "app.js"):
+        f = STATIC_DIR / name
+        if f.is_file():
+            html = html.replace(f'"static/{name}"', f'"static/{name}?v={int(f.stat().st_mtime)}"')
+    return HTMLResponse(html, headers={"Cache-Control": "no-store"})
 
 
 @app.get("/", include_in_schema=False)
