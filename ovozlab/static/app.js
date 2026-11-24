@@ -75,7 +75,11 @@ function go(view) {
   if (view === 'stt') checkSttModel();
   if (view === 'account') renderAccount();
   if (view === 'admin') renderAdmin();
+  navOpen(false);
 }
+function navOpen(on) { $('#app').classList.toggle('nav-open', on); }
+$('#menuBtn').onclick = () => navOpen(!$('#app').classList.contains('nav-open'));
+$('#scrim').onclick = () => navOpen(false);
 $$('.nav-item[data-view]').forEach(b => b.onclick = () => go(b.dataset.view));
 document.addEventListener('click', (e) => {
   const a = e.target.closest('[data-action="clone"]'); if (a) openClone({});

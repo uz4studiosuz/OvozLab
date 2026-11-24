@@ -78,7 +78,8 @@ a { color: inherit; }
 .icon.xs { width: 14px; height: 14px; }
 
 /* ---------- layout ---------- */
-.app { display: grid; grid-template-columns: 248px 1fr; height: 100vh; }
+.app { display: grid; grid-template-columns: 248px 1fr; height: 100vh; height: 100dvh; }
+.menu-btn, .scrim { display: none; }
 .sidebar { border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 18px 12px 12px; background: var(--bg); min-height: 0; }
 .brand { display: flex; align-items: center; gap: 9px; padding: 2px 10px 22px; font-weight: 650; font-size: 17px; letter-spacing: -0.02em; }
 .brand .mark { width: 26px; height: 26px; color: var(--text); }
@@ -469,3 +470,74 @@ a { color: inherit; }
 .adm-form { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 0 20px 16px; }
 .adm-form label { font-size: 12.5px; color: var(--muted); display: grid; gap: 4px; }
 @media (max-width: 720px) { .adm-form { grid-template-columns: 1fr; } .page { padding: 20px 16px 40px; } }
+
+/* ================= telefon va planshet ================= */
+@media (max-width: 860px) {
+  .app { grid-template-columns: 1fr; }
+  .sidebar { position: fixed; z-index: 70; top: 0; bottom: 0; left: 0; width: min(280px, 84vw); overflow-y: auto; transform: translateX(-100%); transition: transform .22s ease; box-shadow: var(--shadow-lg); }
+  .app.nav-open .sidebar { transform: none; }
+  .scrim { display: block; position: fixed; inset: 0; z-index: 60; background: rgba(10,10,12,.38); opacity: 0; pointer-events: none; transition: opacity .2s; }
+  .app.nav-open .scrim { opacity: 1; pointer-events: auto; }
+  .menu-btn { display: inline-grid; margin-left: -6px; color: var(--text); }
+  .topbar { height: 54px; padding: 0 12px; gap: 8px; justify-content: flex-start; }
+  .topbar h1 { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .topbar .right .btn { padding: 0 8px; }
+  .topbar .right [data-link="github"] { display: none; }
+
+  /* TTS: muharrir ustida, sozlamalar pastida, hammasi bitta skroll */
+  .tts { display: flex; flex-direction: column; overflow-y: auto; }
+  .editor-col { flex: none; border-right: 0; }
+  .editor-scroll { flex: none; overflow: visible; padding: 18px 16px 12px; }
+  .hl-backdrop, .hl-text { font-size: 16.5px; }
+  .hl-text { min-height: 200px; }
+  .editor-bar { padding: 10px 12px; flex-wrap: wrap; gap: 8px; position: sticky; bottom: 0; z-index: 5; }
+  .editor-bar .count { flex: 1; }
+  #genBtn { flex: 1 0 100%; height: 44px; font-size: 15px; }
+  .btn .kbd { display: none; }
+  .menu { left: auto; }
+  .player { padding: 10px 12px; gap: 10px; }
+  .side { flex: none; border-top: 8px solid var(--bg-subtle); }
+  .side-body { overflow: visible; padding: 16px; }
+  .tabs { padding: 0 16px; }
+
+  .page { padding: 18px 14px 40px; }
+  .page-head { flex-wrap: wrap; align-items: flex-start; }
+  .voice-grid { grid-template-columns: 1fr; }
+  .set-row { flex-wrap: wrap; padding: 12px 16px; }
+  .card-head { padding: 14px 16px 0; }
+  .code { margin: 0 16px 16px; }
+  .key-new { margin: 0 16px 14px; }
+  .balance-hero { padding: 16px; gap: 14px; }
+  .balance-hero .num { font-size: 28px; }
+  .stat-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .stat { padding: 12px; }
+  .stat .v { font-size: 19px; }
+  .adm-form { grid-template-columns: 1fr; padding: 0 16px 16px; }
+  #admCount { white-space: nowrap; }
+  #admTable th:nth-child(n+4), #admTable td:nth-child(n+4) { display: none; }
+  .tbl .who { min-width: 0; }
+  .tbl th, .tbl td { padding-left: 10px; padding-right: 10px; }
+
+  .stt-head { flex-wrap: wrap; padding: 14px 16px; }
+  .stt-seg { grid-template-columns: 64px 1fr; gap: 8px; }
+  .stt-text { padding: 14px 16px; }
+
+  .modal-bg { padding: 10px; align-items: end; }
+  .modal { max-height: calc(100dvh - 20px); border-radius: 16px; }
+  .modal-foot { flex-wrap: wrap; }
+  .modal-foot .btn { flex: 1; }
+  .menu { max-width: calc(100vw - 24px); }
+  .toasts { left: 12px; right: 12px; transform: none; bottom: 12px; }
+  .toast { max-width: none; }
+
+  .stage-top { padding: 14px 16px; }
+  .stage-center { padding: 0 16px; gap: 20px; }
+  .orb { width: min(70vw, 40vh); }
+  .setup { grid-template-columns: 1fr; }
+  .setup-aside { display: none; }
+  .setup-content { padding: 28px 18px 20px; }
+  .setup-foot { padding: 12px 18px; }
+  .login-box { padding: 26px 18px; }
+  /* iOS zoom'ni oldini olish: maydonlar 16px */
+  .input, .select, .textarea { font-size: 16px; }
+}
