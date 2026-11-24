@@ -222,7 +222,7 @@
       <a href="#savollar">Savollar</a>
     </nav>
     <div class="nav-cta">
-      <a class="btn" data-gh href="#"><svg class="icon"><use href="#i-github"/></svg>GitHub</a>
+      <a class="btn" data-app href="/app">Kirish</a>
       <a class="btn primary" data-dl href="#">Yuklab olish</a>
     </div>
   </div>
@@ -235,9 +235,9 @@
     <p class="lead">Matnni jonli nutqqa aylantiring, ovozingizni 10 soniyada klonlang va yozuvlarni matnga o'giring. Hech qanday obuna yo'q, ma'lumotlar hech qayerga ketmaydi.</p>
     <div class="hero-cta">
       <a class="btn primary lg" data-dl href="#"><svg class="icon"><use href="#i-win"/></svg>Windows uchun yuklab olish</a>
-      <a class="btn lg" href="#tinglang"><svg class="icon" style="fill:currentColor;stroke:none"><use href="#i-play"/></svg>Namunalarni tinglash</a>
+      <a class="btn lg" data-app href="/app"><svg class="icon"><use href="#i-wave"/></svg>Brauzerda ishlatish</a>
     </div>
-    <div class="hero-meta">Windows 10 / 11 · 64-bit · Intel Arc, NVIDIA yoki CPU</div>
+    <div class="hero-meta">Windows 10 / 11 · 64-bit · Intel Arc, NVIDIA yoki CPU &nbsp;·&nbsp; yoki o'rnatmasdan — saytda Telegram orqali kirib</div>
 
     <div class="preview reveal" aria-label="OvozLab ilovasi ko'rinishi">
       <div class="pv-bar"><i></i><i></i><i></i><span>OvozLab</span></div>
@@ -398,6 +398,10 @@ open(<span class="s">"salom.wav"</span>, <span class="s">"wb"</span>).write(r.co
   document.querySelectorAll('[data-gh]').forEach(a => a.href = REPO);
   document.querySelectorAll('[data-gh-path]').forEach(a => a.href = REPO + a.dataset.ghPath);
   // To'g'ridan-to'g'ri yuklab olish: har relizda doimiy nomli OvozLab-Setup.exe fayli bor.
+  // Onlayn dashboard (Telegram orqali kirish). Sayt OvozLab serverining o'zida ochilsa — "/app",
+  // boshqa joyda (masalan GitHub Pages) joylansa — server manzilini APP_URL ga yozing.
+  const APP_URL = /github\.io$/.test(location.hostname) || location.protocol === 'file:' ? 'https://ovozlab.usmoxan.space/app' : '/app';
+  document.querySelectorAll('[data-app]').forEach(a => a.href = APP_URL);
   document.querySelectorAll('[data-dl]').forEach(a => { a.href = REPO + '/releases/latest/download/OvozLab-Setup.exe'; a.setAttribute('download', ''); });
 
   // sticky header border

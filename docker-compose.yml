@@ -1,0 +1,70 @@
+# OvozLab API — GPU serverda ishga tushirish:
+#   1) .env fayliga yozing:  OVOZLAB_API_KEY=<uzun tasodifiy kalit>
+#   2) docker compose up -d --build
+#   3) http://<server-ip>:8020/      — landing, /app — dashboard (Telegram orqali kirish), /docs — API
+services:
+  ovozlab:
+    build: .
+    image: ovozlab:latest
+    container_name: mirzo-ovozlab
+    restart: unless-stopped
+    ports:
+      - "${OVOZLAB_BIND:-0.0.0.0}:${OVOZLAB_PORT:-8020}:8020"
+    environment:
+      OVOZLAB_API_KEY: ${OVOZLAB_API_KEY:?OVOZLAB_API_KEY .env faylida berilishi kerak}
+      OVOZLAB_ASR: ${OVOZLAB_ASR:-1}
+      OVOZLAB_ASR_KEEP: ${OVOZLAB_ASR_KEEP:-0}   # Whisper'ni ishdan keyin VRAM'dan bo'shatish
+      # Hisoblar: saytga Telegram orqali kirish, token balansi, shaxsiy API kalitlar
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      OVOZLAB_ADMINS: ${OVOZLAB_ADMINS:-5427799219}
+      OVOZLAB_CONTACT: ${OVOZLAB_CONTACT:-usmoxan}
+      OVOZLAB_FREE_TOKENS: ${OVOZLAB_FREE_TOKENS:-2000}
+      OVOZLAB_COST_TTS_CHAR: ${OVOZLAB_COST_TTS_CHAR:-1}
+      OVOZLAB_COST_STT_SEC: ${OVOZLAB_COST_STT_SEC:-1}
+      OVOZLAB_COST_CLONE: ${OVOZLAB_COST_CLONE:-100}
+    volumes:
+      - ovozlab-data:/data   # modellar (~6 GB), ovozlar, tarix
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+  # Telegram bot (ixtiyoriy): .env ga TELEGRAM_BOT_TOKEN qo'shing, keyin
+  #   docker compose --profile bot up -d
+  bot:
+    image: ovozlab:latest
+    container_name: mirzo-ovozlab-bot
+    restart: unless-stopped
+    profiles: ["bot"]
+    depends_on: [ovozlab]
+    command: ["python", "-m", "ovozlab.tgbot"]
+    environment:
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      OVOZLAB_API_URL: http://ovozlab:8020
+      OVOZLAB_API_KEY: ${OVOZLAB_API_KEY}
+      BOT_RATE_PER_HOUR: ${BOT_RATE_PER_HOUR:-60}
+      OVOZLAB_WEB_URL: ${OVOZLAB_WEB_URL:-}   # masalan https://ovozlab.usmoxan.space — botdagi "Saytga kirish" havolasi
+      OVOZLAB_CONTACT: ${OVOZLAB_CONTACT:-usmoxan}
+      BOT_STATE: /bot/state.json
+    volumes:
+      - ovozlab-bot:/bot
+
+  # Cloudflare Tunnel (ixtiyoriy): saytni internetga chiqaradi, port ochish shart emas.
+  #   ./cloudflared/ ichida config.yml + <tunnel-id>.json bo'lishi kerak, keyin
+  #   docker compose --profile bot --profile tunnel up -d
+  cloudflared:
+    image: cloudflare/cloudflared:2025.11.1
+    container_name: mirzo-ovozlab-tunnel
+    restart: unless-stopped
+    profiles: ["tunnel"]
+    depends_on: [ovozlab]
+    command: ["tunnel", "--no-autoupdate", "--config", "/etc/cloudflared/config.yml", "run"]
+    volumes:
+      - ./cloudflared:/etc/cloudflared:ro
+
+volumes:
+  ovozlab-data:
+  ovozlab-bot:

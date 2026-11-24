@@ -16,6 +16,7 @@ const isDesktop = () => !!(window.pywebview && window.pywebview.api);
 
 const MOOD_LABEL = { neutral: 'Oddiy', happy: 'Quvnoq', sad: "G'amgin", serious: 'Jiddiy', story: 'Hikoyachi' };
 const MOOD_SUFFIX = { neutral: '', happy: 'quvnoq', sad: "g'amgin", serious: 'jiddiy', story: 'hikoya' };
+const SRV = { on: false, me: null, cfg: null };  // server rejimi (sayt): Telegram hisob, tokenlar
 const state = {
   mood: 'neutral',
   voices: [], voiceId: '', format: 'wav', quality: 32, history: [], health: null,
@@ -49,6 +50,7 @@ function toast(msg, err = false) {
 }
 async function api(path, opts = {}) {
   const r = await fetch(path, opts);
+  if (r.status === 401 && SRV.on && !path.startsWith('/auth/')) { showLogin(); }
   if (!r.ok) {
     let msg = `${r.status} ${r.statusText}`;
     try { const j = await r.json(); msg = typeof j.detail === 'string' ? j.detail : (j.detail?.[0]?.msg || msg); } catch {}
@@ -63,7 +65,7 @@ function closeMenus(except) { $$('.menu').forEach(m => { if (m !== except) m.hid
 document.addEventListener('click', (e) => { if (!e.target.closest('.dropdown')) closeMenus(); });
 
 /* ---------------- navigation ---------------- */
-const TITLES = { tts: 'Matndan nutq', stt: 'Nutqdan matn', voices: 'Ovozlar', settings: 'Sozlamalar' };
+const TITLES = { tts: 'Matndan nutq', stt: 'Nutqdan matn', voices: 'Ovozlar', settings: 'Sozlamalar', account: 'Hisob va API', admin: 'Admin panel' };
 function go(view) {
   $$('.nav-item[data-view]').forEach(b => b.classList.toggle('active', b.dataset.view === view));
   $$('.view').forEach(v => v.classList.toggle('active', v.dataset.view === view));
@@ -71,6 +73,8 @@ function go(view) {
   if (view === 'voices') renderVoiceGrid();
   if (view === 'settings') renderSettings();
   if (view === 'stt') checkSttModel();
+  if (view === 'account') renderAccount();
+  if (view === 'admin') renderAdmin();
 }
 $$('.nav-item[data-view]').forEach(b => b.onclick = () => go(b.dataset.view));
 document.addEventListener('click', (e) => {
@@ -332,6 +336,7 @@ async function generate() {
     const v = voiceById(state.voiceId);
     const used = voiceById(r.headers.get('X-Voice-Used')) || v;
     const ms = r.headers.get('X-Mood-Source'), ml = MOOD_LABEL[state.mood];
+    tokensLeft(r);
     const moodTxt = ms === 'profile' ? ` · ${ml} (yozuvdan)` : ms === 'approx' ? ` · ${ml} (taxminiy)` : '';
     await playUrl(url, used ? used.name : 'Avtomatik ovoz', `${(+dur).toFixed(1)}s · ${((performance.now() - t0) / 1000).toFixed(1)}s da yaratildi${moodTxt}`, id, text);
     if (!$('[data-pane="history"]').hidden) loadHistory();
@@ -527,7 +532,7 @@ function openClone(opts = {}) {
       const sfx = mode === 'record' ? MOODS[mood].suffix : '';
       fd.append('name', $('#cName').value.trim() || ('Mening ovozim' + (sfx ? ` — ${sfx}` : ''))); fd.append('language', 'uz');
       if (mode === 'record') fd.append('mood', mood);
-      const v = await json('/clone', { method: 'POST', body: fd });
+      const v = await json('/clone', { method: 'POST', body: fd }); refreshMe();
       await loadVoices(); close(); useVoice(v.id);
       toast(`"${v.name}" saqlandi` + (v.ref_text_auto ? ' (matn avtomatik aniqlandi)' : ''));
     } catch (e) { toast(e.message, true); b.disabled = false; b.textContent = 'Ovozni saqlash'; }
@@ -586,6 +591,7 @@ function renameVoice(id) {
 /* ---------------- speech to text ---------------- */
 const stt = { result: null, name: '', poll: null };
 async function checkSttModel() {
+  if (SRV.on) { $('#sttNeedModel').hidden = true; $('#sttMain').hidden = false; return; }
   let s; try { s = await json('/api/system'); } catch { return; }
   const asr = s.models.find(m => m.id === 'asr');
   const need = !asr.present || !s.settings.asr_enabled;
@@ -623,9 +629,10 @@ async function runStt(blob, name) {
   try {
     const fd = new FormData(); fd.append('audio', blob, name);
     const r = stt.result = await json('/stt', { method: 'POST', body: fd });
+    refreshMe();
     $('#sttText').value = r.text;
     $('#sttMeta').textContent = `${fmtTime(r.duration_s)} audio · ${r.elapsed_s}s da o'girildi · ${r.text.split(/\s+/).filter(Boolean).length} so'z`;
-    $('#sttSegs').innerHTML = r.segments.map(s => `<div class="stt-seg"><span class="ts">${fmtTime(s.start)} – ${fmtTime(s.end)}</span><span>${esc(s.text)}</span></div>`).join('')
+    $('#sttSegs').innerHTML = sttCues(r).map(s => `<div class="stt-seg"><span class="ts">${fmtTime(s.start)} – ${fmtTime(s.end)}</span><span>${(s.lines || [s.text]).map(esc).join('<br>')}</span></div>`).join('')
       || '<div class="empty">Nutq topilmadi</div>';
   } catch (e) { toast(e.message, true); $('#sttResult').hidden = true; }
   $('#sttLoading').hidden = true;
@@ -649,15 +656,23 @@ function downloadText(text, filename) {
 const baseName = () => (stt.name || 'ovozlab').replace(/\.[^.]+$/, '').replace(/[\\/:*?"<>|·]+/g, '').trim() || 'ovozlab';
 $('#sttCopy').onclick = async () => { try { await navigator.clipboard.writeText($('#sttText').value); toast('Nusxalandi'); } catch { $('#sttText').select(); document.execCommand('copy'); toast('Nusxalandi'); } };
 $('#sttTxt').onclick = () => downloadText($('#sttText').value, baseName() + '.txt');
+function sttCues(r) { return r.cues && r.cues.length ? r.cues : r.segments; }
+const cueText = (s) => (s.lines || [s.text]).join('\n');
 $('#sttSrt').onclick = () => {
   if (!stt.result) return;
-  downloadText(stt.result.segments.map((s, i) => `${i + 1}\n${srtTime(s.start)} --> ${srtTime(s.end)}\n${s.text}\n`).join('\n'), baseName() + '.srt');
+  downloadText(sttCues(stt.result).map((s, i) => `${i + 1}\n${srtTime(s.start)} --> ${srtTime(s.end)}\n${cueText(s)}\n`).join('\n'), baseName() + '.srt');
+};
+$('#sttVtt').onclick = () => {
+  if (!stt.result) return;
+  const t = (x) => srtTime(x).replace(',', '.');
+  downloadText('WEBVTT\n\n' + sttCues(stt.result).map(s => `${t(s.start)} --> ${t(s.end)}\n${cueText(s)}\n`).join('\n'), baseName() + '.vtt');
 };
 $('#sttToTts').onclick = () => { ta.value = $('#sttText').value.slice(0, MAX_CHARS); syncEditor(); go('tts'); };
 
 /* ---------------- settings ---------------- */
 async function renderSettings() {
   const body = $('#settingsBody');
+  if (SRV.on) return renderServerSettings(body);
   let s;
   try { s = await json('/api/system'); } catch (e) { body.innerHTML = `<div class="card"><div class="empty">${esc(e.message)}</div></div>`; return; }
   const BK = { xpu: 'Intel Arc (XPU)', cuda: 'NVIDIA (CUDA)', cpu: 'Protsessor (CPU)' };
@@ -873,6 +888,9 @@ async function startInstall() {
 /* ---------------- boot ---------------- */
 async function boot() {
   syncEditor(); renderVoicePick();
+  let h = null;
+  try { h = await json('/health'); } catch {}
+  if (h && h.server_mode) return serverBoot();
   pollHealth();
   try {
     const st = await json('/api/setup/status');
@@ -960,3 +978,276 @@ document.addEventListener('keydown', (e) => {
   if (e.code === 'Space') { e.preventDefault(); $('#stagePlay').click(); poke(); }
 });
 document.addEventListener('fullscreenchange', () => { if (!document.fullscreenElement && stage.open) { /* foydalanuvchi F11/Esc bilan chiqdi */ } });
+
+/* ================= SERVER REJIMI: Telegram hisob, tokenlar, API kalitlar, admin ================= */
+function fmtN(n) { return Math.round(Number(n) || 0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' '); }
+function roleBadge(r) { return r === 'admin' ? '<span class="badge admin">Admin</span>' : r === 'vip' ? '<span class="badge vip">VIP</span>' : '<span class="badge">Oddiy</span>'; }
+function roleLabel(r) { return r === 'admin' ? 'Admin' : r === 'vip' ? 'VIP' : 'Oddiy'; }
+function setAva(el, u) {
+  if (!el || !u) return;
+  if (u.photo_url) { el.style.cssText = `background-image:url("${encodeURI(u.photo_url)}")`; el.textContent = ''; }
+  else { el.style.cssText = avatarStyle(u.name || String(u.id)); el.textContent = (String(u.name || '?').trim()[0] || '?').toUpperCase(); }
+}
+function usageRow(u) {
+  const KIND = { tts: 'Matndan nutq', stt: 'Nutqdan matn', clone: 'Ovoz klonlash', grant: "To'ldirish" };
+  const SRC = { web: 'Sayt', bot: 'Telegram bot', api: 'API', admin: 'Admin', system: 'Tizim', service: 'Xizmat' };
+  return `<tr><td>${KIND[u.kind] || esc(u.kind)}<div class="sub">${esc(u.detail || '')}</div></td><td class="sub">${SRC[u.source] || esc(u.source || '')}</td>
+    <td class="sub">${ago(u.ts)}</td><td class="num ${u.amount > 0 ? 'pos' : 'neg'}">${u.amount > 0 ? '+' : ''}${fmtN(u.amount)}</td></tr>`;
+}
+
+async function serverBoot() {
+  SRV.on = true;
+  document.body.classList.add('srv');
+  $$('[data-srv]').forEach(e => { e.hidden = false; });
+  $('#acctCard').onclick = () => go('account');
+  const vp = $('[data-view="voices"] .page-head p'); if (vp) vp.textContent = 'Klonlangan ovozlaringiz. Sayt va Telegram botda bir xil.';
+  try { SRV.cfg = await json('/auth/config'); } catch {}
+  pollHealth();
+  if (await refreshMe()) afterLogin(); else showLogin();
+}
+function afterLogin() {
+  $('#login').hidden = true; $('#acctCard').hidden = false;
+  loadVoices().catch(() => {});
+}
+async function refreshMe() {
+  try { const r = await fetch('/account/me'); if (!r.ok) return false; SRV.me = await r.json(); renderMe(); return true; }
+  catch { return false; }
+}
+function tokensLeft(r) {
+  const left = r.headers.get('X-Tokens-Left');
+  if (!SRV.me || left == null) return;
+  if (left !== 'unlimited') SRV.me.tokens = +left;
+  SRV.me.used += +(r.headers.get('X-Tokens-Used') || 0);
+  renderMe();
+}
+function renderMe() {
+  const me = SRV.me; if (!me) return;
+  $('#acctName').textContent = me.name;
+  $('#acctBal').innerHTML = `<b>${me.unlimited ? '♾ Cheksiz' : fmtN(me.tokens) + ' token'}</b>${me.role !== 'user' ? ' · ' + roleLabel(me.role) : ''}`;
+  $('#acctCard').classList.toggle('low', !me.unlimited && me.tokens < 200);
+  setAva($('#acctAva'), me);
+  $('#navAdmin').hidden = me.role !== 'admin';
+}
+
+/* ---------- kirish ---------- */
+let loginPoll = null;
+function showLogin() {
+  if (!$('#login').hidden) return;
+  $('#login').hidden = false; $('#acctCard').hidden = true;
+  const c = SRV.cfg || {};
+  $('#loginBotName').textContent = c.bot_username ? '@' + c.bot_username : 'Telegram bot';
+  if (c.prices) $('#loginGift').innerHTML = `🎁 Yangi hisobga <b>${fmtN(c.prices.free_tokens)}</b> bepul token beriladi`;
+  const w = $('#tgWidget'); w.innerHTML = '';
+  // Telegram Login Widget faqat BotFather'da /setdomain qilingan domenda ishlaydi (IP yoki localhost'da emas).
+  const host = location.hostname, isDomain = host.includes('.') && !/^[\d.]+$/.test(host);
+  if (c.widget && c.bot_username && isDomain) {
+    window.onTelegramAuth = async (user) => {
+      try { SRV.me = await post('/auth/telegram', user); renderMe(); afterLogin(); toast('Xush kelibsiz, ' + SRV.me.name); }
+      catch (e) { $('#loginHint').textContent = e.message; }
+    };
+    const sc = document.createElement('script');
+    sc.async = true; sc.src = 'https://telegram.org/js/telegram-widget.js?22';
+    sc.setAttribute('data-telegram-login', c.bot_username); sc.setAttribute('data-size', 'large');
+    sc.setAttribute('data-radius', '10'); sc.setAttribute('data-onauth', 'onTelegramAuth(user)');
+    sc.setAttribute('data-request-access', 'write');
+    w.append(sc);
+  }
+  $('#loginBot').disabled = !c.bot_username;
+  $('#loginBot').onclick = loginViaBot;
+}
+async function loginViaBot() {
+  const hint = $('#loginHint');
+  const win = window.open('', '_blank');  // popup bloklanmasligi uchun darhol ochamiz
+  let c;
+  try { c = await post('/auth/code'); } catch (e) { if (win) win.close(); hint.textContent = e.message; return; }
+  if (win) win.location = c.url; else location.href = c.url;
+  hint.innerHTML = `Telegram'da <b>“Ha, kirish”</b> tugmasini bosing… <a href="${esc(c.url)}" target="_blank" rel="noopener">havolani ochish</a>`;
+  clearInterval(loginPoll);
+  const t0 = Date.now();
+  loginPoll = setInterval(async () => {
+    if (Date.now() - t0 > c.ttl * 1000) { clearInterval(loginPoll); hint.textContent = 'Vaqt tugadi, qaytadan bosing'; return; }
+    try {
+      const r = await fetch('/auth/code/' + c.code);
+      const j = await r.json();
+      if (!r.ok) { clearInterval(loginPoll); hint.textContent = j.detail || 'Xato'; return; }
+      if (j.status === 'pending') return;
+      clearInterval(loginPoll); hint.textContent = '';
+      SRV.me = j; renderMe(); afterLogin(); toast('Xush kelibsiz, ' + j.name);
+    } catch {}
+  }, 1500);
+}
+async function logout() {
+  try { await post('/auth/logout'); } catch {}
+  location.reload();
+}
+
+/* ---------- hisob sahifasi ---------- */
+const CURL_EXAMPLE = (origin) => [
+  `curl -X POST ${origin}/tts`,
+  `  -H "Authorization: Bearer olk_..."`,
+  `  -H "Content-Type: application/json"`,
+  `  -d '{"text": "Assalomu alaykum!", "format": "mp3"}' -o salom.mp3`,
+].join(' \\\n');
+async function renderAccount() {
+  const body = $('#accountBody');
+  await refreshMe();
+  const me = SRV.me; if (!me) return;
+  const p = me.prices, contact = `https://t.me/${encodeURIComponent(p.contact)}`;
+  let keys = [], usage = [];
+  try { [keys, usage] = await Promise.all([json('/account/keys'), json('/account/usage?limit=40')]); } catch (e) { toast(e.message, true); }
+  body.innerHTML = `
+  <div class="card"><div class="balance-hero">
+    <span class="avatar lg" id="accAva"></span>
+    <div class="grow">
+      <div class="hint">${esc(me.name)}${me.username ? ' · @' + esc(me.username) : ''} · ID ${me.id} &nbsp;${roleBadge(me.role)}</div>
+      <div class="num">${me.unlimited ? '♾' : fmtN(me.tokens)}<small>${me.unlimited ? 'cheksiz' : 'token'}</small></div>
+      <div class="hint">Jami sarflangan: ${fmtN(me.used)} token</div>
+    </div>
+    <a class="btn primary" href="${contact}" target="_blank" rel="noopener">${icon('i-send')}Token olish — @${esc(p.contact)}</a>
+  </div>
+  <div class="set-row"><div class="k"><div class="t1">Narxlar</div><div class="t2" style="word-break:normal">Matndan nutq — ${p.tts_per_char} token / belgi · Nutqdan matn — ${p.stt_per_sec} token / soniya · Ovoz klonlash — ${p.clone} token</div></div></div>
+  </div>
+
+  <div class="card">
+    <div class="card-head" style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding-bottom:14px">
+      <div><h3>API kalitlar</h3><p>O'z saytingiz, botingiz yoki dasturingizdan ulanish uchun. Har bir so'rov shu hisob balansidan yechiladi.</p></div>
+      <button class="btn sm primary" id="keyNew">${icon('i-plus', 'icon xs')}Yangi kalit</button>
+    </div>
+    <div id="keyFresh"></div>
+    ${keys.length ? `<div class="tbl-wrap"><table class="tbl"><tr><th>Nomi</th><th>Kalit</th><th>Yaratilgan</th><th>Oxirgi so'rov</th><th></th></tr>
+      ${keys.map(k => `<tr><td>${esc(k.name)}</td><td><code>${esc(k.hint)}</code></td><td class="sub">${ago(k.created_at)}</td>
+        <td class="sub">${k.last_used ? ago(k.last_used) : '—'}</td>
+        <td class="num"><button class="icon-btn danger" data-kdel="${k.id}" title="O'chirish">${icon('i-trash')}</button></td></tr>`).join('')}</table></div>`
+      : `<div class="empty" style="padding:18px">Hali kalit yo'q</div>`}
+    <div class="code" style="margin-top:14px">${esc(CURL_EXAMPLE(location.origin))}</div>
+    <div class="set-row"><div class="k"><div class="t2" style="word-break:normal">Javobdagi <span class="mono">X-Tokens-Left</span> sarlavhasi — qolgan balans. Token tugasa 402 xatosi qaytadi.</div></div>
+      <button class="btn sm" data-link="api">${icon('i-external', 'icon xs')}API hujjatlari</button></div>
+  </div>
+
+  <div class="card"><div class="card-head" style="padding-bottom:12px"><h3>So'nggi amallar</h3><p>Sayt, Telegram bot va API orqali.</p></div>
+    ${usage.length ? `<div class="tbl-wrap"><table class="tbl">${usage.map(usageRow).join('')}</table></div>` : `<div class="empty" style="padding:18px">Hali amal yo'q</div>`}
+  </div>
+
+  <div class="card"><div class="set-row" style="border-top:0"><div class="k"><div class="t1">Chiqish</div><div class="t2">Shu brauzerda hisobdan chiqish</div></div>
+    <button class="btn sm danger" id="logout">${icon('i-logout', 'icon xs')}Chiqish</button></div></div>`;
+  setAva($('#accAva'), me);
+  $('#keyNew').onclick = createKey;
+  $('#logout').onclick = logout;
+  $$('[data-kdel]', body).forEach(b => b.onclick = async () => {
+    if (!confirm("Kalit o'chirilsinmi? Uni ishlatayotgan dasturlar to'xtaydi.")) return;
+    try { await api('/account/keys/' + b.dataset.kdel, { method: 'DELETE' }); renderAccount(); } catch (e) { toast(e.message, true); }
+  });
+}
+async function createKey() {
+  const name = prompt('Kalit nomi (masalan: Mening saytim)', 'API kalit');
+  if (name === null) return;
+  try {
+    const k = await post('/account/keys', { name: name.trim() || 'API kalit' });
+    await renderAccount();
+    $('#keyFresh').innerHTML = `<div class="key-new"><b>Kalitni hozir nusxalab oling</b> — u boshqa ko'rsatilmaydi:
+      <code>${esc(k.key)}</code><button class="btn sm" id="keyCopy">${icon('i-copy', 'icon xs')}Nusxalash</button></div>`;
+    $('#keyCopy').onclick = () => navigator.clipboard.writeText(k.key).then(() => toast('Nusxalandi'), () => toast("Qo'lda nusxalang", true));
+  } catch (e) { toast(e.message, true); }
+}
+function renderServerSettings(body) {
+  const h = state.health || {};
+  body.innerHTML = `
+    <div class="card"><div class="card-head"><h3>Ko'rinish</h3></div>
+      <div class="set-row"><div class="k"><div class="t1">Mavzu</div><div class="t2">Sayt ko'rinishi</div></div>
+        <div class="seg" id="theme" style="width:240px"><button data-v="system">Tizim</button><button data-v="light">Yorug'</button><button data-v="dark">Qorong'i</button></div></div></div>
+    <div class="card"><div class="card-head"><h3>Server</h3></div>
+      <div class="set-row"><div class="k"><div class="t1">Hisoblash qurilmasi</div><div class="t2">${esc(h.device_name || h.device || '—')}</div></div><span class="badge">v${esc(h.version || '')}</span></div>
+      <div class="set-row"><div class="k"><div class="t1">Hisob va API kalitlar</div><div class="t2">Balans, kalitlar, sarflar tarixi</div></div><button class="btn sm" id="toAcct">Ochish</button></div></div>
+    <div class="card"><div class="card-head"><h3>OvozLab haqida</h3></div>
+      <div class="set-row"><div class="k"><div class="t2" style="word-break:normal">Ochiq kod, Apache-2.0. Nutq modeli: OmniVoice (k2-fsa) · O'zbekcha Whisper: navai-uz.</div></div><button class="btn sm" data-link="github">${icon('i-github', 'icon xs')}GitHub</button></div></div>`;
+  const th = savedTheme();
+  $$('#theme button').forEach(b => b.classList.toggle('on', b.dataset.v === th));
+  seg('theme', v => { applyTheme(v); try { localStorage.setItem('ovozlab.theme', v); } catch {} });
+  $('#toAcct').onclick = () => go('account');
+}
+
+/* ---------- admin panel ---------- */
+const ADM = { q: '', t: null };
+async function renderAdmin() {
+  if (SRV.me?.role !== 'admin') return;
+  $('#admQ').oninput = () => { clearTimeout(ADM.t); ADM.t = setTimeout(() => { ADM.q = $('#admQ').value.trim(); loadAdminUsers(); }, 250); };
+  $('#admRefresh').onclick = renderAdmin;
+  try {
+    const s = await json('/admin/stats'), k = s.by_kind_24h || {};
+    $('#admStats').innerHTML = [
+      ['Foydalanuvchilar', fmtN(s.users), `+${s.new_24h} so'nggi 24 soatda`],
+      ['24 soatda faol', fmtN(s.active_24h), ''],
+      ["So'rovlar (24 soat)", fmtN(s.requests_24h), `TTS ${k.tts || 0} · STT ${k.stt || 0} · klon ${k.clone || 0}`],
+      ['Sarflangan token (24 soat)', fmtN(s.spent_24h), ''],
+      ['VIP va admin', fmtN(s.vip), s.blocked ? `${s.blocked} ta bloklangan` : ''],
+    ].map(([a, b, c]) => `<div class="stat"><div class="k">${a}</div><div class="v">${b}</div>${c ? `<div class="hint">${c}</div>` : ''}</div>`).join('');
+  } catch (e) { toast(e.message, true); }
+  loadAdminUsers();
+}
+async function loadAdminUsers() {
+  let users;
+  try { users = await json('/admin/users?limit=300&q=' + encodeURIComponent(ADM.q)); } catch (e) { return toast(e.message, true); }
+  $('#admCount').textContent = `${users.length} ta`;
+  const empty = /^\d{5,}$/.test(ADM.q)
+    ? `<tr><td colspan="5"><div class="empty" style="padding:18px">Bu ID hali ro'yxatdan o'tmagan. <button class="btn sm" id="admNew">${esc(ADM.q)} ga token berish</button></div></td></tr>`
+    : `<tr><td colspan="5"><div class="empty" style="padding:18px">Topilmadi</div></td></tr>`;
+  $('#admTable').innerHTML = `<tr><th>Foydalanuvchi</th><th>Tarif</th><th class="num">Balans</th><th class="num">Sarflangan</th><th>Oxirgi faollik</th></tr>` +
+    (users.length ? users.map(u => `<tr class="clk" data-uid="${u.id}">
+      <td><div class="who"><span class="avatar" data-ava="${u.id}"></span><div><div>${esc(u.name)}</div><div class="sub">${u.username ? '@' + esc(u.username) + ' · ' : ''}${u.id}${u.note ? ' · ' + esc(u.note) : ''}</div></div></div></td>
+      <td>${roleBadge(u.role)}${u.blocked ? ' <span class="badge bad">Blok</span>' : ''}</td>
+      <td class="num">${u.unlimited ? '♾' : fmtN(u.tokens)}</td><td class="num">${fmtN(u.used)}</td>
+      <td class="sub">${u.last_seen ? ago(u.last_seen) : '—'}</td></tr>`).join('') : empty);
+  $$('[data-ava]').forEach(el => setAva(el, users.find(u => String(u.id) === el.dataset.ava)));
+  $$('#admTable tr.clk').forEach(tr => tr.onclick = () => openAdminUser(+tr.dataset.uid));
+  const nb = $('#admNew');
+  if (nb) nb.onclick = async () => {
+    try { await json('/admin/users/' + ADM.q, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: '{}' }); openAdminUser(+ADM.q); loadAdminUsers(); }
+    catch (e) { toast(e.message, true); }
+  };
+}
+async function openAdminUser(id) {
+  let u;
+  try { u = await json('/admin/users/' + id); } catch (e) { return toast(e.message, true); }
+  $$('.modal-bg.adm').forEach(m => m.remove());
+  const bg = document.createElement('div'); bg.className = 'modal-bg adm';
+  const close = () => bg.remove();
+  bg.innerHTML = `<div class="modal" style="width:min(680px,100%)">
+    <div class="modal-head"><div style="display:flex;gap:12px;align-items:center;min-width:0"><span class="avatar lg" id="auAva" style="background-size:cover;color:#fff;font-weight:600"></span>
+      <div style="min-width:0"><h3 style="margin:0">${esc(u.name)} ${roleBadge(u.role)}${u.blocked ? ' <span class="badge bad">Blok</span>' : ''}</h3>
+      <div class="hint">${u.username ? `<a href="https://t.me/${encodeURIComponent(u.username)}" target="_blank" rel="noopener">@${esc(u.username)}</a> · ` : ''}ID ${u.id} · ${u.voices} ta ovoz · ${u.keys.length} ta API kalit · ${ago(u.created_at)} qo'shilgan</div></div></div>
+      <button class="icon-btn" id="auX">${icon('i-x')}</button></div>
+    <div class="stat-grid" style="padding:12px 20px 0;grid-template-columns:repeat(2,1fr)">
+      <div class="stat"><div class="k">Balans</div><div class="v">${u.unlimited ? '♾ <small>cheksiz</small>' : fmtN(u.tokens) + ' <small>token</small>'}</div></div>
+      <div class="stat"><div class="k">Jami sarflangan</div><div class="v">${fmtN(u.used)} <small>token</small></div></div></div>
+    <div class="adm-form">
+      <label>Token qo'shish (manfiy — ayirish)<div style="display:flex;gap:6px"><input class="input" id="auAdd" type="number" placeholder="masalan 5000"><button class="btn primary" id="auAddBtn">Qo'shish</button></div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:2px">${[1000, 5000, 20000, 100000].map(n => `<button class="btn sm" data-quick="${n}">+${fmtN(n)}</button>`).join('')}</div></label>
+      <label>Balansni aniq o'rnatish<div style="display:flex;gap:6px"><input class="input" id="auSet" type="number" min="0" value="${u.tokens}"><button class="btn" id="auSetBtn">Saqlash</button></div></label>
+      <label>Tarif<select class="select" id="auRole"><option value="user">Oddiy (token bilan)</option><option value="vip">VIP — cheksiz</option><option value="admin">Admin — cheksiz + panel</option></select></label>
+      <label>Holat<button class="btn ${u.blocked ? '' : 'danger'}" id="auBlock">${u.blocked ? 'Blokdan chiqarish' : 'Bloklash'}</button></label>
+      <label style="grid-column:1/-1">Izoh (faqat adminlarga ko'rinadi)<div style="display:flex;gap:6px"><input class="input" id="auNote" maxlength="200" value="${esc(u.note || '')}" placeholder="masalan: 50 000 so'm to'ladi, 24.11"><button class="btn" id="auNoteBtn">Saqlash</button></div></label>
+    </div>
+    <div class="card-head" style="padding-top:0"><h3>Amallar tarixi</h3></div>
+    <div class="tbl-wrap" style="max-height:300px;overflow:auto;margin:8px 0 12px">${u.usage.length ? `<table class="tbl">${u.usage.map(usageRow).join('')}</table>` : `<div class="empty" style="padding:18px">Bo'sh</div>`}</div>
+  </div>`;
+  document.body.append(bg);
+  setAva($('#auAva', bg), u);
+  $('#auRole', bg).value = u.role;
+  bg.onclick = (e) => { if (e.target === bg) close(); };
+  $('#auX', bg).onclick = close;
+  const patch = async (b, msg) => {
+    try {
+      await json('/admin/users/' + id, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(b) });
+      toast(msg || 'Saqlandi'); openAdminUser(id); loadAdminUsers();
+      if (id === SRV.me.id) refreshMe();
+    } catch (e) { toast(e.message, true); }
+  };
+  const add = (n) => { n = parseInt(n, 10); if (n) patch({ add: n }, `${n > 0 ? '+' : ''}${fmtN(n)} token`); };
+  $('#auAddBtn', bg).onclick = () => add($('#auAdd', bg).value);
+  $('#auAdd', bg).onkeydown = (e) => { if (e.key === 'Enter') add(e.target.value); };
+  $$('[data-quick]', bg).forEach(b => b.onclick = () => add(b.dataset.quick));
+  $('#auSetBtn', bg).onclick = () => { const v = parseInt($('#auSet', bg).value, 10); if (v >= 0) patch({ tokens: v }, "Balans o'rnatildi"); };
+  $('#auRole', bg).onchange = (e) => patch({ role: e.target.value }, 'Tarif: ' + roleLabel(e.target.value));
+  $('#auBlock', bg).onclick = () => { if (u.blocked || confirm(`${u.name} bloklansinmi? Sayt, bot va API kalitlari ishlamay qoladi.`)) patch({ blocked: !u.blocked }, u.blocked ? 'Blokdan chiqarildi' : 'Bloklandi'); };
+  $('#auNoteBtn', bg).onclick = () => patch({ note: $('#auNote', bg).value }, 'Izoh saqlandi');
+}

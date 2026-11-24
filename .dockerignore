@@ -1,0 +1,13 @@
+.git
+.venv
+.claude
+**/__pycache__
+*.pyc
+.env
+data
+outputs
+docs
+installer
+scripts
+graphify-out
+cloudflared

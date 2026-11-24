@@ -63,13 +63,14 @@ def find_mood_sibling(voice_id: str, mood: str):
         return meta
     g = group_of(meta)
     for other in list_all():
-        if other["id"] != voice_id and group_of(other) == g and mood_of(other) == mood:
+        if (other["id"] != voice_id and other.get("owner") == meta.get("owner") and group_of(other) == g
+                and mood_of(other) == mood):
             return other
     return None
 
 
 def save(voice_id: str, name: str, ref_text: str, language: str, prompt, ref_wav: Path, duration_s: float,
-         mood: str | None = None) -> dict:
+         mood: str | None = None, owner: int | None = None) -> dict:
     d = _dir(voice_id)
     d.mkdir(parents=True, exist_ok=True)
     prompt.save(str(d / "prompt.pt"))
@@ -85,6 +86,8 @@ def save(voice_id: str, name: str, ref_text: str, language: str, prompt, ref_wav
     }
     if mood:
         meta["mood"] = mood
+    if owner is not None:
+        meta["owner"] = owner  # Telegram ID — sayt va botda bitta hisob
     (d / "meta.json").write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
     with _cache_lock:
         _cache[voice_id] = prompt
@@ -127,8 +130,12 @@ def load_prompt(voice_id: str):
 
 
 def rename(voice_id: str, name: str) -> dict:
+    return update_meta(voice_id, name=name)
+
+
+def update_meta(voice_id: str, **values) -> dict:
     meta = get_meta(voice_id)
-    meta["name"] = name
+    meta.update(values)
     (_dir(voice_id) / "meta.json").write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
     return meta
 

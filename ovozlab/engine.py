@@ -5,6 +5,7 @@ from __future__ import annotations
 import gc
 import io
 import logging
+import os
 import threading
 import time
 from typing import Optional
@@ -88,6 +89,9 @@ STYLE_BRIDGE_TEXT = ("My dear friends, today I would like to tell you a short st
 # Seed'lar solishtirilganda 11 eng aniq farq berdi: keksa ayol 175 Hz / yosh ayol 211 Hz, keksa erkak 104 Hz.
 STYLE_DEFAULT_SEED = 11
 STYLE_SPEED = {"elderly": 0.93}  # keksalar sekinroq gapiradi
+# Uslub prompti inglizcha ko'prik jumladan olinadi, shuning uchun model o'zbekcha gap davomiyligini ~17% qisqa
+# hisoblaydi va so'zlar tushib qoladi (ayniqsa kayfiyat tezlatganda). Shu farqni qoplaymiz.
+STYLE_BASE_SPEED = float(os.environ.get("OVOZLAB_STYLE_SPEED", "0.85"))
 
 # Taxminiy kayfiyat: (tezlik koeffitsienti, ohang siljishi yarim tonlarda, ovoz balandligi).
 # Haqiqiy kayfiyat faqat kayfiyatli reference yozuvdan keladi (voices.find_mood_sibling).
@@ -115,6 +119,7 @@ class Engine:
         self._gen_lock = threading.RLock()  # bitta GPU — bir vaqtda bitta generatsiya
         self._asr = None
         self._asr_lock = threading.Lock()
+        self._word_ts_ok: Optional[bool] = None  # Whisper so'z vaqtlarini bera oladimi (birinchi urinishda aniqlanadi)
         self._styles: dict = {}
         self._style_lock = threading.Lock()
 
@@ -209,26 +214,62 @@ class Engine:
                 self._asr = pipeline(
                     "automatic-speech-recognition", model=config.ASR_MODEL, dtype=dtype, device_map=self.device
                 )
-            segments = []
+            segments, words = [], []
             try:
                 chunks = split_on_pauses(samples.astype(np.float32), sample_rate)
                 for i, (a, b) in enumerate(chunks):
-                    with self._gen_lock:
-                        out = self._asr(
-                            {"array": samples[a:b].astype(np.float32), "sampling_rate": sample_rate},
-                            generate_kwargs={"language": "uzbek", "task": "transcribe"},
-                        )
+                    t0, t1 = a / sample_rate, b / sample_rate
+                    out = self._asr_chunk(samples[a:b], sample_rate)
                     t = cyr_to_lat(out["text"].strip())
                     if t:
-                        segments.append({"start": round(a / sample_rate, 2), "end": round(b / sample_rate, 2),
-                                         "text": t[:1].upper() + t[1:]})
+                        t = t[:1].upper() + t[1:]
+                        segments.append({"start": round(t0, 2), "end": round(t1, 2), "text": t})
+                        words.extend(self._chunk_words(out, t, t0, t1))
                     if progress:
                         progress(i + 1, len(chunks))
             finally:
                 if not config.ASR_KEEP_LOADED:
                     self._asr = None
                     _empty_cache(torch, self.device)
-        return {"text": " ".join(s["text"] for s in segments), "segments": segments}
+        from ovozlab.subtitles import build_cues
+
+        return {"text": " ".join(s["text"] for s in segments), "segments": segments, "words": words,
+                "cues": build_cues(words), "word_timestamps": self._word_ts_ok is not False}
+
+    def _asr_chunk(self, chunk: np.ndarray, sample_rate: int) -> dict:
+        """Bitta <=30 s bo'lak. So'z vaqtlarini so'raymiz; model qo'llamasa, oddiy rejimga o'tamiz."""
+        inp = {"array": chunk.astype(np.float32), "sampling_rate": sample_rate}
+        kw = {"generate_kwargs": {"language": "uzbek", "task": "transcribe"}}
+        if self._word_ts_ok is not False:
+            try:
+                with self._gen_lock:
+                    out = self._asr(dict(inp), return_timestamps="word", **kw)
+                self._word_ts_ok = True
+                return out
+            except Exception as exc:  # fine-tune modelda alignment_heads bo'lmasligi mumkin
+                logger.warning("So'z vaqtlari olinmadi, taxminiy vaqt ishlatiladi: %s", exc)
+                self._word_ts_ok = False
+        with self._gen_lock:
+            return self._asr(dict(inp), **kw)
+
+    @staticmethod
+    def _chunk_words(out: dict, text: str, t0: float, t1: float) -> list[dict]:
+        from ovozlab.audio import cyr_to_lat
+        from ovozlab.subtitles import estimate_words
+
+        raw = out.get("chunks") or []
+        words = []
+        for c in raw:
+            w = cyr_to_lat((c.get("text") or "").strip())
+            s, e = (c.get("timestamp") or (None, None))[:2]
+            if not w or s is None:
+                continue
+            e = s + 0.3 if e is None else e
+            words.append({"word": w, "start": round(t0 + float(s), 3), "end": round(min(t0 + float(e), t1), 3)})
+        if not words:
+            return estimate_words(text, t0, t1)
+        words[0]["word"] = words[0]["word"][:1].upper() + words[0]["word"][1:]
+        return words
 
     # ----------------------------------------------------------------- clone
     def create_voice_prompt(self, ref_audio_path: str, ref_text: str):
@@ -256,6 +297,7 @@ class Engine:
         steps = num_step or int(config.settings.get("default_num_step") or 32)
         if instruct and voice_prompt is None and ref_audio_path is None:
             voice_prompt = self.style_prompt(instruct, seed if seed is not None else STYLE_DEFAULT_SEED)
+            speed = (speed or 1.0) * STYLE_BASE_SPEED
             for item, k in STYLE_SPEED.items():
                 if item in instruct.lower():
                     speed = (speed or 1.0) * k

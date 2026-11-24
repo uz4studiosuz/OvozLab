@@ -21,8 +21,19 @@
     <div class="nav-label">Yaratish</div>
     <button class="nav-item" data-action="clone"><svg class="icon"><use href="#i-mic"/></svg>Ovoz klonlash</button>
 
+    <div class="nav-label" data-srv hidden>Hisob</div>
+    <button class="nav-item" data-view="account" data-srv hidden><svg class="icon"><use href="#i-key"/></svg>Hisob va API</button>
+    <button class="nav-item" data-view="admin" id="navAdmin" hidden><svg class="icon"><use href="#i-shield"/></svg>Admin panel</button>
+
     <div class="spacer"></div>
     <button class="nav-item" data-view="settings"><svg class="icon"><use href="#i-settings"/></svg>Sozlamalar</button>
+    <button class="acct-card" id="acctCard" hidden title="Hisob">
+      <span class="avatar" id="acctAva"></span>
+      <div style="min-width:0;flex:1">
+        <div class="t1" id="acctName">—</div>
+        <div class="t2" id="acctBal">—</div>
+      </div>
+    </button>
     <div class="status-card" id="statusCard" title="">
       <span class="dot" id="statusDot"></span>
       <div style="min-width:0">
@@ -193,6 +204,7 @@
                 <button class="btn sm" id="sttCopy"><svg class="icon xs"><use href="#i-copy"/></svg>Nusxalash</button>
                 <button class="btn sm" id="sttTxt"><svg class="icon xs"><use href="#i-download"/></svg>TXT</button>
                 <button class="btn sm" id="sttSrt"><svg class="icon xs"><use href="#i-download"/></svg>SRT subtitr</button>
+                <button class="btn sm" id="sttVtt" title="Sayt va video pleyerlar uchun"><svg class="icon xs"><use href="#i-download"/></svg>VTT</button>
               </div>
             </div>
           </div>
@@ -211,6 +223,30 @@
       </div></div>
     </section>
 
+    <!-- ---------- ACCOUNT ---------- -->
+    <section class="view" data-view="account">
+      <div class="page"><div class="page-inner" style="max-width:860px">
+        <div class="page-head"><div><h2>Hisob va API</h2><p>Balans, sarflar tarixi va dasturlaringiz uchun API kalitlar. Sayt va Telegram botda hisob bitta.</p></div></div>
+        <div id="accountBody"></div>
+      </div></div>
+    </section>
+
+    <!-- ---------- ADMIN ---------- -->
+    <section class="view" data-view="admin">
+      <div class="page"><div class="page-inner">
+        <div class="page-head"><div><h2>Admin panel</h2><p>Foydalanuvchilar, balanslar va tariflar.</p></div>
+          <button class="btn sm" id="admRefresh"><svg class="icon xs"><use href="#i-refresh"/></svg>Yangilash</button></div>
+        <div class="stat-grid" id="admStats"></div>
+        <div class="card">
+          <div class="card-head" style="display:flex;gap:10px;align-items:center;padding-bottom:12px">
+            <input class="input" id="admQ" placeholder="ID, @username yoki ism bo'yicha qidirish" style="max-width:360px">
+            <span class="hint" id="admCount"></span>
+          </div>
+          <div class="tbl-wrap"><table class="tbl" id="admTable"></table></div>
+        </div>
+      </div></div>
+    </section>
+
     <!-- ---------- SETTINGS ---------- -->
     <section class="view" data-view="settings">
       <div class="page"><div class="page-inner" style="max-width:760px">
@@ -219,6 +255,20 @@
       </div></div>
     </section>
   </main>
+</div>
+
+<!-- ================= LOGIN (server rejimi) ================= -->
+<div class="login" id="login" hidden>
+  <div class="login-box">
+    <div class="brand" style="justify-content:center;margin-bottom:18px"><svg class="mark"><use href="#logo"/></svg>OvozLab</div>
+    <h2>Hisobingizga kiring</h2>
+    <p>Telegram orqali bir bosishda. Sayt va <b id="loginBotName">bot</b>da hisobingiz va tokenlaringiz bitta.</p>
+    <div id="tgWidget" class="tg-widget"></div>
+    <button class="btn primary lg" id="loginBot" style="width:100%"><svg class="icon sm"><use href="#i-send"/></svg>Telegram bot orqali kirish</button>
+    <div class="hint" id="loginHint" style="margin-top:12px;min-height:18px"></div>
+    <div class="login-gift" id="loginGift"></div>
+    <a class="hint" href="/" style="display:inline-block;margin-top:14px">← Bosh sahifa</a>
+  </div>
 </div>
 
 <!-- ================= SETUP WIZARD ================= -->
@@ -292,6 +342,10 @@
   <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8" y="8" width="14" height="14" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></symbol>
   <symbol id="i-pencil" viewBox="0 0 24 24"><path d="M21.17 6.81a1 1 0 0 0-3.99-3.99L3.84 16.17a2 2 0 0 0-.5.83l-1.32 4.35a.5.5 0 0 0 .62.62l4.35-1.32a2 2 0 0 0 .83-.5zM15 5l4 4"/></symbol>
   <symbol id="i-shuffle" viewBox="0 0 24 24"><path d="m18 14 4 4-4 4M18 2l4 4-4 4M2 18h1.97a4 4 0 0 0 3.3-1.7l5.46-8.6A4 4 0 0 1 16.03 6H22M2 6h1.97a4 4 0 0 1 3.3 1.7l.53.84M22 18h-5.97a4 4 0 0 1-3.3-1.7l-.53-.84"/></symbol>
+  <symbol id="i-key" viewBox="0 0 24 24"><circle cx="7.5" cy="15.5" r="5.5"/><path d="m21 2-9.6 9.6M15.5 7.5l3 3L22 7l-3-3"/></symbol>
+  <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></symbol>
+  <symbol id="i-send" viewBox="0 0 24 24"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></symbol>
+  <symbol id="i-logout" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></symbol>
   <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8M21 3v5h-5M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16M8 16H3v5"/></symbol>
 </svg>
 

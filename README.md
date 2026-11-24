@@ -158,6 +158,20 @@ uv run python -m ovozlab
 | `OVOZLAB_MODEL` | `k2-fsa/OmniVoice` | TTS modeli (HF nomi yoki lokal papka) |
 | `OVOZLAB_ASR_MODEL` | `navai-uz/whisper-medium-uzbek` | Nutqni tanish modeli |
 | `OVOZLAB_PRELOAD` | `1` | `0` bo'lsa, model birinchi so'rovda yuklanadi |
+| `OVOZLAB_API_KEY` | yo'q | Berilsa, har bir so'rov `Authorization: Bearer <key>` yoki `X-API-Key` talab qiladi (`/health`, `/docs` ochiq) |
+| `OVOZLAB_SERVER` | `0` | `1` — server rejimi: ish stoli ilovasining `/api/*` (sozlash, papka ochish) endpoint'lari yopiladi |
+| `OVOZLAB_ASR_KEEP` | `1` | `0` bo'lsa, Whisper ishdan keyin videokarta xotirasidan bo'shatiladi |
+
+### Serverda ishga tushirish (Linux + NVIDIA, Docker)
+
+```bash
+echo "OVOZLAB_API_KEY=$(openssl rand -hex 24)" > .env
+docker compose up -d --build        # birinchi marta: PyTorch + modellar (~10 GB) yuklanadi
+curl http://localhost:8020/health
+```
+
+Ma'lumotlar (modellar, ovozlar, tarix) `ovozlab-data` Docker volume'ida saqlanadi. Port va manzil: `.env` da `OVOZLAB_PORT`, `OVOZLAB_BIND`.
+API key'ni hech qachon brauzer yoki telefon ilovasi ichiga qo'ymang. So'rovlar sizning backend'ingiz orqali o'tsin.
 
 ### O'rnatuvchini yig'ish
 
@@ -178,7 +192,7 @@ Server ishlayotganda to'liq interaktiv hujjat `/docs` manzilida bo'ladi. Ilova o
 | `POST` | `/clone` | Ovoz profilini yaratish. Multipart: `audio`, `ref_text` (ixtiyoriy), `name` |
 | `GET` | `/voices` | Saqlangan ovozlar ro'yxati |
 | `PATCH` / `DELETE` | `/voices/{id}` | Ovoz nomini o'zgartirish yoki o'chirish |
-| `POST` | `/stt` | Nutqdan matn, vaqt belgilari bilan. Multipart: `audio` |
+| `POST` | `/stt` | Nutqdan matn, vaqt belgilari bilan. Multipart: `audio`. `?format=srt` / `vtt` / `txt` — tayyor subtitr fayli (CapCut, Premiere, YouTube); `max_chars`, `max_lines` qator uzunligini sozlaydi |
 | `POST` | `/tts/instant` | Profil saqlamasdan bir martalik klon |
 | `GET` | `/history` | Yaratilgan audiolar tarixi |
 | `GET` | `/health` | Model holati va qurilma |
@@ -208,7 +222,14 @@ open("natija.wav", "wb").write(audio.content)
 # 3) Nutqdan matn
 with open("intervyu.mp3", "rb") as f:
     print(requests.post(f"{API}/stt", files={"audio": f}).json()["text"])
+
+# 4) Videodan SRT subtitr (qisqa qatorlar, vaqtlari bilan)
+with open("video.mp4", "rb") as f:
+    srt = requests.post(f"{API}/stt", params={"format": "srt"}, files={"audio": f})
+open("video.srt", "w", encoding="utf-8").write(srt.text)
 ```
+
+API key yoqilgan serverda har bir so'rovga header qo'shing: `headers={"Authorization": f"Bearer {KEY}"}`.
 
 Ilova oynasida API manzili har safar o'zgaradi (bo'sh port tanlanadi). Doimiy manzil kerak bo'lsa, serverni `uvicorn` buyrug'i bilan alohida ishga tushiring.
 

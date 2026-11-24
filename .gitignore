@@ -16,3 +16,9 @@ installer/Output/
 
 # Lokal sozlamalar
 .claude/
+
+# Server sirlari
+.env
+
+# Cloudflare tunnel credentials
+cloudflared/
